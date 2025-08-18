@@ -82,7 +82,20 @@ pub fn subset_detailed(
     let requested_glyphs: HashSet<u16> = glyph_ids.iter().copied().collect();
 
     // Perform subsetting with mapping
-    let (data, glyph_mapping) = subset_and_map(provider, glyph_ids, profile, cmap_target)?;
+    let result = subset_and_map(provider, glyph_ids, profile, cmap_target)?;
+
+    // Extract font data and mapping from SubsetResult
+    let (data, glyph_mapping) = match result {
+        crate::subset::SubsetResult::Simple {
+            font_data,
+            glyph_mapping,
+        } => (font_data, glyph_mapping),
+        crate::subset::SubsetResult::Cid {
+            font_data,
+            glyph_mapping,
+            ..
+        } => (font_data, glyph_mapping),
+    };
 
     // Build reverse mapping
     let reverse_mapping: HashMap<u16, u16> = glyph_mapping

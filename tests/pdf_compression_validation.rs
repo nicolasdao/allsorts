@@ -9,7 +9,7 @@ use allsorts::subset::builder::{SubsetBuilder, ValidationLevel};
 use allsorts::subset::composite::update_composite_references;
 use allsorts::subset::pdf::{subset_for_pdf, PdfFontContext, WritingMode};
 use allsorts::subset::result::subset_detailed;
-use allsorts::subset::{subset_and_map, CmapTarget, SubsetProfile};
+use allsorts::subset::{subset_and_map, CmapTarget, SubsetProfile, SubsetResult};
 use allsorts::tables::{FontTableProvider, OpenTypeFont};
 use std::collections::HashMap;
 
@@ -39,13 +39,25 @@ fn test_subset_and_map_basic_mapping() {
     // Glyphs we typically need (from actual usage analysis)
     let glyph_ids = vec![0, 19, 21, 110, 143]; // Including bullet at 143
 
-    let (subset_data, mapping) = subset_and_map(
+    let result = subset_and_map(
         &provider,
         &glyph_ids,
         &SubsetProfile::Pdf,
         CmapTarget::Unrestricted,
     )
     .unwrap();
+
+    let (subset_data, mapping) = match result {
+        SubsetResult::Simple {
+            font_data,
+            glyph_mapping,
+        } => (font_data, glyph_mapping),
+        SubsetResult::Cid {
+            font_data,
+            glyph_mapping,
+            ..
+        } => (font_data, glyph_mapping),
+    };
 
     // Critical assertions based on our requirements
     assert_eq!(mapping.len(), 5, "Should map exactly the requested glyphs");
@@ -74,13 +86,25 @@ fn test_subset_and_map_composite_dependencies() {
     // In SFNT-TTF-Composite.ttf, glyph 2 is composite
     let glyph_ids = vec![0, 2];
 
-    let (_subset_data, mapping) = subset_and_map(
+    let result = subset_and_map(
         &provider,
         &glyph_ids,
         &SubsetProfile::Pdf,
         CmapTarget::Unrestricted,
     )
     .unwrap();
+
+    let (_subset_data, mapping) = match result {
+        SubsetResult::Simple {
+            font_data,
+            glyph_mapping,
+        } => (font_data, glyph_mapping),
+        SubsetResult::Cid {
+            font_data,
+            glyph_mapping,
+            ..
+        } => (font_data, glyph_mapping),
+    };
 
     // Should include dependencies automatically if subsetting does that
     // Note: subset_and_map might not automatically include components,
@@ -112,13 +136,25 @@ fn test_subset_and_map_empty_glyphs() {
     // Include space glyph which is typically empty
     let glyph_ids = vec![0, 3, 32, 65]; // Including space-like glyph
 
-    let (_subset_data, mapping) = subset_and_map(
+    let result = subset_and_map(
         &provider,
         &glyph_ids,
         &SubsetProfile::Pdf,
         CmapTarget::Unrestricted,
     )
     .unwrap();
+
+    let (_subset_data, mapping) = match result {
+        SubsetResult::Simple {
+            font_data,
+            glyph_mapping,
+        } => (font_data, glyph_mapping),
+        SubsetResult::Cid {
+            font_data,
+            glyph_mapping,
+            ..
+        } => (font_data, glyph_mapping),
+    };
 
     // Empty glyphs should still be mapped
     assert_eq!(mapping.len(), 4, "Should include all requested glyphs");
@@ -147,13 +183,25 @@ fn test_subset_and_map_cid_font_problematic_glyphs() {
         143, // Bullet (•) - our biggest problem!
     ];
 
-    let (_subset_data, mapping) = subset_and_map(
+    let result = subset_and_map(
         &provider,
         &glyph_ids,
         &SubsetProfile::Pdf,
         CmapTarget::Unrestricted,
     )
     .unwrap();
+
+    let (_subset_data, mapping) = match result {
+        SubsetResult::Simple {
+            font_data,
+            glyph_mapping,
+        } => (font_data, glyph_mapping),
+        SubsetResult::Cid {
+            font_data,
+            glyph_mapping,
+            ..
+        } => (font_data, glyph_mapping),
+    };
 
     // The critical assertion - bullet must be mapped!
     assert!(
@@ -186,13 +234,25 @@ fn test_update_composite_references_basic() {
 
     // Subset including composite glyphs
     let glyph_ids = vec![0, 1, 2]; // 2 is composite
-    let (mut subset_data, mapping) = subset_and_map(
+    let result = subset_and_map(
         &provider,
         &glyph_ids,
         &SubsetProfile::Pdf,
         CmapTarget::Unrestricted,
     )
     .unwrap();
+
+    let (mut subset_data, mapping) = match result {
+        SubsetResult::Simple {
+            font_data,
+            glyph_mapping,
+        } => (font_data, glyph_mapping),
+        SubsetResult::Cid {
+            font_data,
+            glyph_mapping,
+            ..
+        } => (font_data, glyph_mapping),
+    };
 
     // Update composite references
     let stats = update_composite_references(&mut subset_data, &mapping).unwrap();
@@ -249,13 +309,25 @@ fn test_update_composite_references_cff_font() {
     let provider = create_provider(&font_buffer);
 
     let glyph_ids = vec![0, 10, 20, 30];
-    let (mut subset_data, mapping) = subset_and_map(
+    let result = subset_and_map(
         &provider,
         &glyph_ids,
         &SubsetProfile::Pdf,
         CmapTarget::Unrestricted,
     )
     .unwrap();
+
+    let (mut subset_data, mapping) = match result {
+        SubsetResult::Simple {
+            font_data,
+            glyph_mapping,
+        } => (font_data, glyph_mapping),
+        SubsetResult::Cid {
+            font_data,
+            glyph_mapping,
+            ..
+        } => (font_data, glyph_mapping),
+    };
 
     // Should handle CFF fonts (even if no composites to update)
     let stats = update_composite_references(&mut subset_data, &mapping).unwrap();
@@ -692,13 +764,25 @@ fn test_performance_requirements() {
 
     // Test subset_and_map performance
     let start = Instant::now();
-    let (data, mapping) = subset_and_map(
+    let result = subset_and_map(
         &provider,
         &glyph_ids,
         &SubsetProfile::Pdf,
         CmapTarget::Unrestricted,
     )
     .unwrap();
+
+    let (data, mapping) = match result {
+        SubsetResult::Simple {
+            font_data,
+            glyph_mapping,
+        } => (font_data, glyph_mapping),
+        SubsetResult::Cid {
+            font_data,
+            glyph_mapping,
+            ..
+        } => (font_data, glyph_mapping),
+    };
     let subset_time = start.elapsed();
 
     assert!(

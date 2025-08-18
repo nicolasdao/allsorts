@@ -88,12 +88,25 @@ pub fn subset_for_pdf(
 ) -> Result<PdfSubsetResult, SubsetError> {
     // Implementation added after tests were written
     // Step 1: Perform subsetting with mapping
-    let (mut font_data, glyph_mapping) = subset_and_map(
+    let result = subset_and_map(
         provider,
         glyph_ids,
         &SubsetProfile::Pdf,
         CmapTarget::Unrestricted,
     )?;
+
+    // Extract font data and mapping from SubsetResult
+    let (mut font_data, glyph_mapping) = match result {
+        crate::subset::SubsetResult::Simple {
+            font_data,
+            glyph_mapping,
+        } => (font_data, glyph_mapping),
+        crate::subset::SubsetResult::Cid {
+            font_data,
+            glyph_mapping,
+            ..
+        } => (font_data, glyph_mapping),
+    };
 
     // Step 2: Update composite references
     let update_stats = update_composite_references(&mut font_data, &glyph_mapping)?;
