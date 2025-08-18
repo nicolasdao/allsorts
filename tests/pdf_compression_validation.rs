@@ -613,11 +613,25 @@ fn test_complete_pdf_pipeline() {
             result.cid_to_gid_map[bullet_cid_offset + 1],
         ]);
 
-        // Bullet should map to something (0 is ok if glyph wasn't found)
-        assert!(
-            bullet_new_gid == 0 || result.glyph_mapping.values().any(|&v| v == bullet_new_gid),
-            "Bullet should map to .notdef or valid glyph"
-        );
+        // Bullet character MUST work - critical requirement from spec
+        // If bullet glyph (143) was included in the subset, it must not map to .notdef
+        if result.glyph_mapping.contains_key(&143) {
+            // Bullet was included in subset, so it should have a valid mapping
+            let bullet_subset_gid = result.glyph_mapping[&143];
+            assert_eq!(
+                bullet_new_gid, bullet_subset_gid,
+                "CID 143 should map to bullet's new GID {}, not {}",
+                bullet_subset_gid, bullet_new_gid
+            );
+            assert_ne!(
+                bullet_new_gid, 0,
+                "CRITICAL: Bullet must not render as .notdef!"
+            );
+        } else {
+            // Bullet wasn't in the subset (maybe doesn't exist in font)
+            // In this case mapping to 0 is acceptable
+            println!("Note: Bullet glyph (143) not found in font");
+        }
     }
 
     // Validation should report any issues
