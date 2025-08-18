@@ -2434,7 +2434,6 @@ mod tests {
         tables::{FontTableProvider, OpenTypeFont},
         tag,
         tests::read_fixture,
-        Font,
     };
 
     #[test]

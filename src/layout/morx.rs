@@ -732,10 +732,10 @@ fn should_apply_feature(entry: morx::Feature, mask: &FeatureMask) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::font::MatchingPresentation;
-    use crate::tables::{FontTableProvider, MaxpTable, OpenTypeFont};
-    use crate::tests::read_fixture;
-    use crate::{binary::read::ReadScope, tag, Font};
+    
+    
+    
+    
 
     mod rearrangement {
         use super::*;

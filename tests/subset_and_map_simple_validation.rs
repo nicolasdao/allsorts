@@ -7,7 +7,7 @@ mod subset_and_map_simple_validation_tests {
     use allsorts::binary::read::ReadScope;
     use allsorts::subset::{subset_and_map, CmapTarget, SubsetProfile};
     use allsorts::tables::OpenTypeFont;
-    use allsorts::{tag, Font};
+    use allsorts::Font;
     use std::collections::HashSet;
 
     /// Basic test - verify mapping is sequential when input is sequential
