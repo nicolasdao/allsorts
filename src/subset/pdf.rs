@@ -1,7 +1,7 @@
-use std::collections::HashMap;
-use crate::tables::FontTableProvider;
-use crate::subset::{SubsetProfile, CmapTarget, subset_and_map, SubsetError};
 use crate::subset::composite::update_composite_references;
+use crate::subset::{subset_and_map, CmapTarget, SubsetError, SubsetProfile};
+use crate::tables::FontTableProvider;
+use std::collections::HashMap;
 
 /// Context for PDF font subsetting
 #[derive(Debug, Clone)]
@@ -55,28 +55,28 @@ pub struct ValidationResult {
 #[derive(Debug, Clone)]
 pub enum PdfWarning {
     /// A CID references a missing glyph
-    MissingGlyph { 
+    MissingGlyph {
         /// The CID that references a missing glyph
-        cid: u16 
+        cid: u16,
     },
     /// A glyph ID couldn't be mapped
-    UnmappedGlyph { 
+    UnmappedGlyph {
         /// The glyph ID that couldn't be mapped
-        gid: u16 
+        gid: u16,
     },
     /// A composite glyph has a broken component reference
-    BrokenComposite { 
+    BrokenComposite {
         /// The composite glyph ID
-        glyph: u16, 
+        glyph: u16,
         /// The component glyph ID that is missing
-        component: u16 
+        component: u16,
     },
     /// The CID map is larger than necessary
-    OversizedCidMap { 
+    OversizedCidMap {
         /// The actual maximum CID in the map
-        actual: u16, 
+        actual: u16,
         /// The needed maximum CID
-        needed: u16 
+        needed: u16,
     },
 }
 
@@ -94,29 +94,26 @@ pub fn subset_for_pdf(
         &SubsetProfile::Pdf,
         CmapTarget::Unrestricted,
     )?;
-    
+
     // Step 2: Update composite references
     let update_stats = update_composite_references(&mut font_data, &glyph_mapping)?;
-    
+
     // Step 3: Generate CIDToGIDMap
-    let (cid_to_gid_map, validation) = generate_cid_to_gid_map(
-        pdf_context,
-        &glyph_mapping,
-    )?;
-    
+    let (cid_to_gid_map, validation) = generate_cid_to_gid_map(pdf_context, &glyph_mapping)?;
+
     // Step 4: Collect warnings
     let mut warnings = Vec::new();
-    
+
     // Check for missing glyphs
     for &cid in &validation.missing_glyph_cids {
         warnings.push(PdfWarning::MissingGlyph { cid });
     }
-    
+
     // Check for unmapped references
     for &gid in &update_stats.unmapped_references {
         warnings.push(PdfWarning::UnmappedGlyph { gid });
     }
-    
+
     // Check for oversized CID map
     if let Some(ref cid_map) = pdf_context.cid_to_gid_map {
         let max_used_cid = find_max_used_cid(cid_map, &glyph_mapping);
@@ -127,7 +124,7 @@ pub fn subset_for_pdf(
             });
         }
     }
-    
+
     Ok(PdfSubsetResult {
         font_data,
         glyph_mapping,
@@ -144,7 +141,7 @@ fn generate_cid_to_gid_map(
     let mut cid_map = Vec::with_capacity((context.max_cid as usize + 1) * 2);
     let missing_glyph_cids = Vec::new();
     let mut unmapped_cids = Vec::new();
-    
+
     for cid in 0..=context.max_cid {
         // Get original GID for this CID
         let old_gid = if let Some(ref existing_map) = context.cid_to_gid_map {
@@ -153,32 +150,29 @@ fn generate_cid_to_gid_map(
             // Identity mapping if no existing map
             cid
         };
-        
+
         // Map to new GID
         let new_gid = mapping.get(&old_gid).copied().unwrap_or(0);
-        
+
         // Track validation issues only for explicitly mapped CIDs
         if context.cid_to_gid_map.is_some() && old_gid != 0 && !mapping.contains_key(&old_gid) {
             unmapped_cids.push(cid);
         }
-        
+
         // Write as big-endian for PDF
         cid_map.extend_from_slice(&new_gid.to_be_bytes());
     }
-    
+
     let validation = ValidationResult {
         all_cids_mapped: missing_glyph_cids.is_empty() && unmapped_cids.is_empty(),
         missing_glyph_cids,
         unmapped_cids,
     };
-    
+
     Ok((cid_map, validation))
 }
 
-fn find_max_used_cid(
-    cid_to_gid_map: &[u16],
-    glyph_mapping: &HashMap<u16, u16>,
-) -> u16 {
+fn find_max_used_cid(cid_to_gid_map: &[u16], glyph_mapping: &HashMap<u16, u16>) -> u16 {
     // Find highest CID that maps to a used glyph
     for (cid, &gid) in cid_to_gid_map.iter().enumerate().rev() {
         if glyph_mapping.contains_key(&gid) {

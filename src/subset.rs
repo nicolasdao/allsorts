@@ -2,16 +2,16 @@
 
 //! Font subsetting.
 
-/// Composite glyph reference updating for subsetted fonts
-pub mod composite;
-/// Enhanced result structures for subsetting operations
-pub mod result;
-/// PDF-specific font subsetting features
-pub mod pdf;
-/// Validation and debugging utilities for font subsetting
-pub mod validation;
 /// Builder pattern API for font subsetting
 pub mod builder;
+/// Composite glyph reference updating for subsetted fonts
+pub mod composite;
+/// PDF-specific font subsetting features
+pub mod pdf;
+/// Enhanced result structures for subsetting operations
+pub mod result;
+/// Validation and debugging utilities for font subsetting
+pub mod validation;
 
 use std::collections::{BTreeMap, HashMap};
 use std::fmt;
