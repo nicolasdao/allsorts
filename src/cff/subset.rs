@@ -85,6 +85,7 @@ impl<'a> CFF<'a> {
         let mut glyph_data = Vec::with_capacity(glyph_ids.len());
         let mut used_local_subrs = FxHashMap::default();
         let mut used_global_subrs = FxHashSet::default();
+        let mut needs_custom_charset = false;
 
         for &glyph_id in glyph_ids {
             let char_string = font
@@ -109,11 +110,18 @@ impl<'a> CFF<'a> {
             new_to_old_id.push(glyph_id);
 
             if glyph_id != 0 {
-                let sid_or_cid = font
-                    .charset
-                    .id_for_glyph(glyph_id)
-                    .ok_or(ParseError::BadIndex)?;
-                charset.push(sid_or_cid);
+                // Try to get the SID/CID for this glyph from the charset
+                // For predefined charsets like ISOAdobe, this might fail for glyphs beyond their range
+                if let Some(sid_or_cid) = font.charset.id_for_glyph(glyph_id) {
+                    charset.push(sid_or_cid);
+                } else {
+                    // Glyph exists but has no charset entry (e.g., beyond ISOAdobe's range)
+                    // We'll need to use a custom charset for the subset
+                    needs_custom_charset = true;
+                    // For Type 1 fonts, generate a new SID
+                    // Using glyph_id as a simple mapping for now
+                    charset.push(glyph_id);
+                }
             }
 
             // Calculate CID/Type 1 specific updates
@@ -122,11 +130,13 @@ impl<'a> CFF<'a> {
                     // Find out which font DICT this glyph maps to if it's a CID font
                     // Need to know which font DICT applies to each glyph, then ideally work out which FDSelect
                     // format is the best to use. For now it's probably good enough to just use format 0
-                    let fd_index = cid
-                        .fd_select
-                        .font_dict_index(glyph_id)
-                        .ok_or(ParseError::BadIndex)?;
-                    fd_select.push(fd_index);
+                    if let Some(fd_index) = cid.fd_select.font_dict_index(glyph_id) {
+                        fd_select.push(fd_index);
+                    } else {
+                        // If the glyph doesn't have an FD index, use 0 as default
+                        // This can happen for glyphs beyond the original font's range
+                        fd_select.push(0);
+                    }
                 }
                 CFFVariant::Type1(_type1) => {}
             }
@@ -176,11 +186,13 @@ impl<'a> CFF<'a> {
         {
             font.charset = convert_type1_to_cid(&mut cff.string_index, font)?;
         } else {
+            // Check if we can use ISOAdobe charset or need a custom one
             let iso_adobe = 1..=ISO_ADOBE_LAST_SID;
-            if charset
-                .iter()
-                .zip(iso_adobe)
-                .all(|(sid, iso_adobe_sid)| *sid == iso_adobe_sid)
+            if !needs_custom_charset
+                && charset
+                    .iter()
+                    .zip(iso_adobe)
+                    .all(|(sid, iso_adobe_sid)| *sid == iso_adobe_sid)
             {
                 // As per section 18 of Technical Note #5176: There are no predefined charsets for
                 // CID fonts. So this branch is only taken for Type 1 fonts.
