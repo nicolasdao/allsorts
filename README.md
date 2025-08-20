@@ -72,6 +72,8 @@ Font + glyph list → Dependency resolution → Index remapping → Table subset
 - [2.3.4 Profile-Based Subsetting](#334-profile-based-subsetting)
 - [2.3.5 CFF to CID Conversion](#335-cff-to-cid-conversion)
 
+📚 **[Comprehensive Subsetting Guide](docs/subsetting.md)** - Detailed documentation covering all subsetting APIs, CID font support, composite glyph handling, and best practices.
+
 ### Feature 2.4: Glyph Outlines
 **What & Why:** Extract vector path data from glyphs for rendering or analysis. Supports both TrueType and PostScript outline formats.
 
