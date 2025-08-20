@@ -209,8 +209,9 @@ impl<'a> CFF2<'a> {
             .filter(|&&id| id < max_glyph_id)
             .copied()
             .collect();
-        
-        let num_glyphs = u16::try_from(valid_glyph_ids.len()).map_err(|_| SubsetError::TooManyGlyphs)?;
+
+        let num_glyphs =
+            u16::try_from(valid_glyph_ids.len()).map_err(|_| SubsetError::TooManyGlyphs)?;
         if valid_glyph_ids.first().copied() != Some(0) {
             // .notdef must be first
             return Err(SubsetError::NotDef);

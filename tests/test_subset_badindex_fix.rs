@@ -41,15 +41,15 @@ fn test_subset_and_map_handles_excessive_glyph_ids_gracefully() {
     // Test case 1: Request glyph IDs that are beyond the font's physical glyph count
     // These are actual GIDs from CID fonts that can exceed the font's glyph count
     let glyph_ids_excessive: Vec<u16> = vec![
-        0,   // .notdef - always required
-        75,  // Normal glyph
-        88,  // Normal glyph
-        92,  // Normal glyph
-        143, // Bullet character - may be beyond typical font glyph count
-        178, // Special character - way beyond typical font glyph count
-        159, // Another high GID
-        144, // Another high GID
-        actual_glyph_count + 10, // Definitely beyond the font's range
+        0,                        // .notdef - always required
+        75,                       // Normal glyph
+        88,                       // Normal glyph
+        92,                       // Normal glyph
+        143,                      // Bullet character - may be beyond typical font glyph count
+        178,                      // Special character - way beyond typical font glyph count
+        159,                      // Another high GID
+        144,                      // Another high GID
+        actual_glyph_count + 10,  // Definitely beyond the font's range
         actual_glyph_count + 100, // Way beyond the font's range
     ];
 
@@ -219,9 +219,9 @@ fn test_legacy_subset_also_handles_excessive_glyphs() {
 
     // Test with excessive glyph IDs
     let glyph_ids_excessive: Vec<u16> = vec![
-        0,   // .notdef
-        143, // May be beyond font's range
-        178, // May be beyond font's range
+        0,                       // .notdef
+        143,                     // May be beyond font's range
+        178,                     // May be beyond font's range
         actual_glyph_count + 10, // Definitely beyond
     ];
 
@@ -236,10 +236,7 @@ fn test_legacy_subset_also_handles_excessive_glyphs() {
     // Document the current behavior of legacy API for comparison
     match result {
         Ok(font_data) => {
-            println!(
-                "Legacy subset succeeded with {} bytes",
-                font_data.len()
-            );
+            println!("Legacy subset succeeded with {} bytes", font_data.len());
         }
         Err(e) => {
             println!("Legacy subset failed with: {:?}", e);

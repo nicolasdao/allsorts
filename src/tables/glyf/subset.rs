@@ -31,7 +31,7 @@ impl<'a> GlyfTable<'a> {
             .filter(|&&id| id < max_glyph_id)
             .copied()
             .collect();
-        
+
         // Ensure .notdef (glyph 0) is always present at the beginning
         if !glyph_ids.contains(&0) {
             glyph_ids.insert(0, 0);
@@ -40,7 +40,7 @@ impl<'a> GlyfTable<'a> {
             glyph_ids.retain(|&id| id != 0);
             glyph_ids.insert(0, 0);
         }
-        
+
         let mut records = Vec::with_capacity(glyph_ids.len());
 
         let mut i = 0;

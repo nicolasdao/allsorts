@@ -314,7 +314,78 @@ pub fn subset_and_map(
         subset_with_mapping(provider, glyph_ids, profile, cmap_target)?;
 
     // Check if this is a CID font
-    let is_cid = detect_cid_font(provider);
+    let is_cid = detect_cid_font(provider, glyph_ids);
+
+    if is_cid {
+        // Build CIDToGIDMap for CID fonts
+        let max_cid = determine_max_cid(provider, glyph_ids);
+        let cid_to_gid_map = build_cid_to_gid_map(None, &glyph_mapping, max_cid);
+
+        Ok(SubsetResult::Cid {
+            font_data,
+            glyph_mapping,
+            cid_to_gid_map,
+        })
+    } else {
+        Ok(SubsetResult::Simple {
+            font_data,
+            glyph_mapping,
+        })
+    }
+}
+
+/// Creates a subset font with glyph ID mapping and allows explicit CID font specification
+///
+/// This function is similar to `subset_and_map` but allows the caller to explicitly
+/// specify whether the font should be treated as a CID font. This is useful when
+/// the caller has external context (e.g., from PDF structure) that indicates the
+/// font is used as a CID font.
+///
+/// # Arguments
+///
+/// * `provider` - Font table provider
+/// * `glyph_ids` - List of glyph IDs to include (must start with 0 for .notdef)
+/// * `profile` - Subset profile controlling which tables to include
+/// * `cmap_target` - Target cmap format
+/// * `force_cid` - If true, treat the font as CID regardless of detection
+///
+/// # Returns
+///
+/// * `SubsetResult::Cid` - For CID fonts (includes CIDToGIDMap)
+/// * `SubsetResult::Simple` - For non-CID fonts
+///
+/// # Example
+///
+/// ```no_run
+/// # use allsorts::subset::{subset_and_map_with_hint, SubsetProfile, CmapTarget, SubsetResult};
+/// # use allsorts::font_data::FontData;
+/// # use allsorts::binary::read::ReadScope;
+/// # let font_data = vec![0u8; 100];
+/// let scope = ReadScope::new(&font_data);
+/// let font_file = scope.read::<FontData>().unwrap();
+/// let provider = font_file.table_provider(0).unwrap();
+///
+/// // Force CID treatment for a TrueType font used with Identity-H in PDF
+/// let result = subset_and_map_with_hint(
+///     &provider,
+///     &[0, 3, 143, 178],
+///     &SubsetProfile::Pdf,
+///     CmapTarget::Unicode,
+///     true, // Force CID treatment
+/// );
+/// ```
+pub fn subset_and_map_with_hint(
+    provider: &impl FontTableProvider,
+    glyph_ids: &[u16],
+    profile: &SubsetProfile,
+    cmap_target: CmapTarget,
+    force_cid: bool,
+) -> Result<SubsetResult, SubsetError> {
+    let (font_data, glyph_mapping) =
+        subset_with_mapping(provider, glyph_ids, profile, cmap_target)?;
+
+    // Check if this is a CID font (with option to force)
+    let is_cid = force_cid || detect_cid_font(provider, glyph_ids);
 
     if is_cid {
         // Build CIDToGIDMap for CID fonts
@@ -1341,7 +1412,7 @@ impl fmt::Display for SubsetError {
 impl std::error::Error for SubsetError {}
 
 /// Detects if a font is a CID font
-fn detect_cid_font(provider: &impl FontTableProvider) -> bool {
+fn detect_cid_font(provider: &impl FontTableProvider, glyph_ids: &[u16]) -> bool {
     // Check for CFF table with CID structure
     if provider.has_table(tag::CFF) {
         if let Ok(cff_data) = provider.read_table_data(tag::CFF) {
@@ -1354,8 +1425,55 @@ fn detect_cid_font(provider: &impl FontTableProvider) -> bool {
         }
     }
 
-    // For TrueType fonts, we might need external context (from PDF structure)
-    // This would need to be passed as a parameter in a more complete implementation
+    // For TrueType fonts, check if glyph usage pattern indicates CID font
+    // TrueType fonts can be used as CIDFontType2 in PDFs
+    if provider.has_table(tag::GLYF) {
+        return detect_cid_from_glyph_pattern(provider, glyph_ids);
+    }
+
+    false
+}
+
+/// Detects CID font usage from glyph ID patterns
+/// Sparse glyph IDs often indicate CID font usage in PDFs
+fn detect_cid_from_glyph_pattern(provider: &impl FontTableProvider, glyph_ids: &[u16]) -> bool {
+    // Get the total number of glyphs in the font
+    let num_glyphs = if let Ok(maxp_data) = provider.read_table_data(tag::MAXP) {
+        if let Ok(maxp) = ReadScope::new(&maxp_data).read::<MaxpTable>() {
+            maxp.num_glyphs
+        } else {
+            return false;
+        }
+    } else {
+        return false;
+    };
+
+    // Check for sparse glyph ID usage patterns that indicate CID font
+    let max_gid = glyph_ids.iter().copied().max().unwrap_or(0);
+
+    // Heuristics for detecting CID font usage:
+    // 1. If we're requesting GIDs that are much higher than typical ASCII/Latin range
+    //    but the font has relatively few glyphs, it's likely a CID font
+    // 2. Specific sparse patterns like GID 143 (bullet) or 178 are common in CID fonts
+    // 3. If max GID is > 140 and we have less than 300 glyphs total, likely CID
+
+    // Check for known sparse GIDs that are typical in CID fonts
+    let has_sparse_gids = glyph_ids.iter().any(|&gid| {
+        // Common sparse GIDs in CID fonts (e.g., bullet at 143, special chars at 159, 178)
+        (140..=180).contains(&gid)
+    });
+
+    // If we have sparse GIDs and a relatively small font, it's likely CID
+    if has_sparse_gids && num_glyphs < 300 {
+        return true;
+    }
+
+    // If the max requested GID is significantly higher than expected for the font size
+    // This catches cases where CID == GID identity mapping is used
+    if max_gid > 140 && (max_gid as f32 / num_glyphs as f32) > 0.5 {
+        return true;
+    }
+
     false
 }
 

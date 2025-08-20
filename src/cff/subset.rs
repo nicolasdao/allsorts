@@ -77,7 +77,7 @@ impl<'a> CFF<'a> {
     ) -> Result<SubsetCFF<'a>, SubsetError> {
         let mut cff = self.to_owned();
         let font: &mut Font<'_> = &mut cff.fonts[0];
-        
+
         // Filter out glyph IDs that don't exist in the font
         let max_glyph_id = font.char_strings_index.len() as u16;
         let valid_glyph_ids: Vec<u16> = glyph_ids
@@ -85,7 +85,7 @@ impl<'a> CFF<'a> {
             .filter(|&&id| id < max_glyph_id)
             .copied()
             .collect();
-        
+
         let mut charset = Vec::with_capacity(valid_glyph_ids.len());
         let mut fd_select = Vec::with_capacity(valid_glyph_ids.len());
         let mut new_to_old_id = Vec::with_capacity(valid_glyph_ids.len());
