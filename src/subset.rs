@@ -1886,20 +1886,25 @@ mod tests {
 
     #[test]
     fn invalid_glyph_id() {
-        // Test to ensure that invalid glyph ids don't panic when subsetting
+        // Test to ensure that invalid glyph ids are filtered out gracefully when subsetting
         let buffer = read_fixture("tests/fonts/opentype/Klei.otf");
         let opentype_file = ReadScope::new(&buffer).read::<OpenTypeFont<'_>>().unwrap();
         let mut glyph_ids = [0, 9999];
 
+        // After our fix, this should now succeed by filtering out the invalid glyph ID
         match subset(
             &opentype_file.table_provider(0).unwrap(),
             &mut glyph_ids,
             &SubsetProfile::Pdf,
             CmapTarget::Unrestricted,
         ) {
-            Err(SubsetError::Parse(ParseError::BadIndex)) => {}
-            err => panic!(
-                "expected SubsetError::Parse(ParseError::BadIndex) got {:?}",
+            Ok(subset_font) => {
+                // The subset should succeed and contain only glyph 0 (.notdef)
+                // since glyph 9999 doesn't exist and gets filtered out
+                assert!(!subset_font.is_empty());
+            }
+            Err(err) => panic!(
+                "subset should succeed by filtering invalid glyphs, got error: {:?}",
                 err
             ),
         }

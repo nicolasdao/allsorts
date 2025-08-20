@@ -202,17 +202,25 @@ impl<'a> CFF2<'a> {
         include_fstype: bool,
         output_format: OutputFormat,
     ) -> Result<SubsetCFF<'a>, SubsetError> {
-        let num_glyphs = u16::try_from(glyph_ids.len()).map_err(|_| SubsetError::TooManyGlyphs)?;
-        if glyph_ids.first().copied() != Some(0) {
+        // Filter out glyph IDs that don't exist in the font
+        let max_glyph_id = self.char_strings_index.len() as u16;
+        let valid_glyph_ids: Vec<u16> = glyph_ids
+            .iter()
+            .filter(|&&id| id < max_glyph_id)
+            .copied()
+            .collect();
+        
+        let num_glyphs = u16::try_from(valid_glyph_ids.len()).map_err(|_| SubsetError::TooManyGlyphs)?;
+        if valid_glyph_ids.first().copied() != Some(0) {
             // .notdef must be first
             return Err(SubsetError::NotDef);
         }
 
-        let mut fd_select = Vec::with_capacity(glyph_ids.len());
-        let mut new_to_old_id = Vec::with_capacity(glyph_ids.len());
+        let mut fd_select = Vec::with_capacity(valid_glyph_ids.len());
+        let mut new_to_old_id = Vec::with_capacity(valid_glyph_ids.len());
         let mut old_to_new_id =
-            FxHashMap::with_capacity_and_hasher(glyph_ids.len(), Default::default());
-        let mut glyph_data = Vec::with_capacity(glyph_ids.len());
+            FxHashMap::with_capacity_and_hasher(valid_glyph_ids.len(), Default::default());
+        let mut glyph_data = Vec::with_capacity(valid_glyph_ids.len());
         let mut used_local_subrs = FxHashMap::default();
         let mut used_global_subrs = FxHashSet::default();
 
@@ -220,7 +228,7 @@ impl<'a> CFF2<'a> {
         // > than one Font DICT in the Font DICT INDEX, the CFF 1 font must be written as a
         // > CID-keyed font.
         let type_1 = match output_format {
-            OutputFormat::Type1OrCid => glyph_ids.len() < 256 && self.fonts.len() == 1,
+            OutputFormat::Type1OrCid => valid_glyph_ids.len() < 256 && self.fonts.len() == 1,
             OutputFormat::CidOnly => false,
         };
 
@@ -258,7 +266,7 @@ impl<'a> CFF2<'a> {
 
         // Calculate the width of each glyph. These are used to update the CharStrings when
         // converting from CFF2 to CFF CharStrings.
-        let widths = glyph_ids
+        let widths = valid_glyph_ids
             .iter()
             .copied()
             .map(|glyph_id| hmtx.horizontal_advance(glyph_id))
@@ -267,7 +275,7 @@ impl<'a> CFF2<'a> {
         let nominal_width_x = default_width_x;
 
         // Process each glyph (CharString)
-        for (&glyph_id, &width) in glyph_ids.iter().zip(widths.iter()) {
+        for (&glyph_id, &width) in valid_glyph_ids.iter().zip(widths.iter()) {
             let font_index = match &self.fd_select {
                 Some(fd_select) => fd_select
                     .font_dict_index(glyph_id)

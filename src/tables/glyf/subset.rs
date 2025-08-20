@@ -24,7 +24,23 @@ pub struct SubsetGlyf<'a> {
 impl<'a> GlyfTable<'a> {
     /// Returns a copy of this table that only contains the glyphs specified by `glyph_ids`.
     pub fn subset(&self, glyph_ids: &[u16]) -> Result<SubsetGlyf<'a>, ParseError> {
-        let mut glyph_ids = glyph_ids.to_vec();
+        // Filter out glyph IDs that don't exist in the font
+        let max_glyph_id = self.records.len() as u16;
+        let mut glyph_ids: Vec<u16> = glyph_ids
+            .iter()
+            .filter(|&&id| id < max_glyph_id)
+            .copied()
+            .collect();
+        
+        // Ensure .notdef (glyph 0) is always present at the beginning
+        if !glyph_ids.contains(&0) {
+            glyph_ids.insert(0, 0);
+        } else if glyph_ids[0] != 0 {
+            // Move .notdef to the beginning if it's not already there
+            glyph_ids.retain(|&id| id != 0);
+            glyph_ids.insert(0, 0);
+        }
+        
         let mut records = Vec::with_capacity(glyph_ids.len());
 
         let mut i = 0;

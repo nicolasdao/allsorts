@@ -77,17 +77,26 @@ impl<'a> CFF<'a> {
     ) -> Result<SubsetCFF<'a>, SubsetError> {
         let mut cff = self.to_owned();
         let font: &mut Font<'_> = &mut cff.fonts[0];
-        let mut charset = Vec::with_capacity(glyph_ids.len());
-        let mut fd_select = Vec::with_capacity(glyph_ids.len());
-        let mut new_to_old_id = Vec::with_capacity(glyph_ids.len());
+        
+        // Filter out glyph IDs that don't exist in the font
+        let max_glyph_id = font.char_strings_index.len() as u16;
+        let valid_glyph_ids: Vec<u16> = glyph_ids
+            .iter()
+            .filter(|&&id| id < max_glyph_id)
+            .copied()
+            .collect();
+        
+        let mut charset = Vec::with_capacity(valid_glyph_ids.len());
+        let mut fd_select = Vec::with_capacity(valid_glyph_ids.len());
+        let mut new_to_old_id = Vec::with_capacity(valid_glyph_ids.len());
         let mut old_to_new_id =
-            FxHashMap::with_capacity_and_hasher(glyph_ids.len(), Default::default());
-        let mut glyph_data = Vec::with_capacity(glyph_ids.len());
+            FxHashMap::with_capacity_and_hasher(valid_glyph_ids.len(), Default::default());
+        let mut glyph_data = Vec::with_capacity(valid_glyph_ids.len());
         let mut used_local_subrs = FxHashMap::default();
         let mut used_global_subrs = FxHashSet::default();
         let mut needs_custom_charset = false;
 
-        for &glyph_id in glyph_ids {
+        for &glyph_id in &valid_glyph_ids {
             let char_string = font
                 .char_strings_index
                 .read_object(usize::from(glyph_id))
