@@ -4,7 +4,7 @@ use allsorts::subset::SubsetError;
 use allsorts::tables::OpenTypeFont;
 use allsorts::binary::read::ReadScope;
 use std::collections::HashMap;
-use allsorts::subset::phase2::{subset_and_map_for_pdf, PdfFontContext, PdfSubsetResult, PdfFontType};
+use allsorts::subset::pdf::{subset_and_map_for_pdf, PdfFontContext, PdfSubsetResult, PdfFontType};
 
 
 #[test]

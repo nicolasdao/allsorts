@@ -2,7 +2,7 @@
 
 use allsorts::subset::context::FontEncoding;
 use allsorts::subset::SubsetError;
-use allsorts::subset::phase2::{PdfFontContext, PdfFontType};
+use allsorts::subset::pdf::{PdfFontContext, PdfFontType};
 
 #[test]
 fn test_pdf_context_identity_h_constructor() {

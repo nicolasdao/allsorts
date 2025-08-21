@@ -28,7 +28,7 @@ This phase follows Test-Driven Development (TDD) methodology as outlined in `spe
 ### 1.1 Read Documentation
 
 - Review Phase 1 implementation in `src/subset/context.rs` for Identity encoding
-- Review Phase 2 implementation for PdfFontContext API
+- Review Phase 2 implementation in `src/subset/pdf.rs` for PdfFontContext API
 - Study CJK encoding specifications and Adobe CMap documentation
 - Understand existing test patterns in `tests/subset/`
 
@@ -453,17 +453,21 @@ fn test_memory_constraints() {
 
 #[test]
 fn test_pdf_context_with_cjk_encoding() {
-    use allsorts::subset::context::PdfFontContext;
+    use allsorts::subset::pdf::PdfFontContext;
     
     let encoding = FontEncoding::from_pdf_name("GB-EUC-H").unwrap();
     let cmap_provider = Box::new(BuiltinCMapProvider::new());
     
+    // Note: We need to ADD cmap_provider field to PdfFontContext (doesn't exist yet)
     let context = PdfFontContext {
         encoding,
         max_cid: Some(8000),
         preserve_identity: false,
         is_symbolic: false,
-    }.with_cmap_provider(cmap_provider);
+        cid_to_gid_map: None,
+        writing_mode: WritingMode::Horizontal,
+        cmap_provider: Some(cmap_provider),
+    };
     
     // Should be able to create context with CJK encoding
     assert!(matches!(context.encoding, FontEncoding::CJK { .. }));
@@ -472,9 +476,16 @@ fn test_pdf_context_with_cjk_encoding() {
 
 #[test]
 fn test_subset_and_map_with_cjk_encoding() {
-    use allsorts::subset::{subset_and_map_for_pdf, create_test_provider};
+    mod common;
+    use allsorts::subset::pdf::subset_and_map_for_pdf;
+    use allsorts::binary::read::ReadScope;
+    use allsorts::tables::{FontTableProvider, OpenTypeFont};
     
-    let provider = create_test_provider(); // From existing test infrastructure
+    // Create inline test provider instead of calling non-existent function
+    let buffer = common::read_fixture_font("opentype/Klei.otf");
+    let scope = ReadScope::new(&buffer);
+    let font_file = scope.read::<OpenTypeFont>().unwrap();
+    let provider = font_file.table_provider(0).unwrap();
     let glyph_ids = vec![1, 2, 3, 4, 5];
     
     let encoding = FontEncoding::from_pdf_name("90ms-RKSJ-H").unwrap();
@@ -485,14 +496,17 @@ fn test_subset_and_map_with_cjk_encoding() {
         max_cid: Some(1000),
         preserve_identity: false,
         is_symbolic: false,
-    }.with_cmap_provider(cmap_provider);
+        cid_to_gid_map: None,
+        writing_mode: WritingMode::Horizontal,
+        cmap_provider: Some(cmap_provider),
+    };
     
     let result = subset_and_map_for_pdf(&provider, &glyph_ids, context);
     assert!(result.is_ok());
     
     let subset_result = result.unwrap();
     assert!(!subset_result.cid_to_gid_map.is_empty());
-    assert!(subset_result.subset_data.len() > 0);
+    assert!(subset_result.font_data.len() > 0);
 }
 ```
 
@@ -712,6 +726,7 @@ pub struct FileCMapProvider {
 ```
 src/subset/
 ├── context.rs               (enhance with CJK types)
+├── pdf.rs                  (PdfFontContext is here, not phase2)
 ├── cid_map.rs              (add CJK mapping functions)
 ├── cjk/
 │   ├── mod.rs              (CJK module root)
@@ -1197,7 +1212,7 @@ impl CMapProvider for FileCMapProvider {
 ### 3.3 Integration with Phase 2 API
 
 ```rust
-// Update PdfFontContext to support CMap provider
+// Update PdfFontContext in src/subset/pdf.rs to support CMap provider
 impl PdfFontContext {
     pub fn with_cmap_provider(mut self, provider: Box<dyn CMapProvider>) -> Self {
         self.cmap_provider = Some(provider);
@@ -1408,7 +1423,7 @@ pub fn subset_and_map_for_pdf(
 - [ ] Performance tests passing
 
 #### Component 7: Phase 2 Integration
-- [ ] PdfFontContext.with_cmap_provider() implemented
+- [ ] PdfFontContext.with_cmap_provider() implemented (ADD cmap_provider field to PdfFontContext in pdf.rs)
 - [ ] subset_and_map_for_pdf() supports CJK encodings
 - [ ] CMap provider properly passed through
 - [ ] Integration tests passing

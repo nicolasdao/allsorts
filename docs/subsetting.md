@@ -313,7 +313,7 @@ let result = subset_and_map_with_context(
 #### PDF-Specific Convenience Function
 
 ```rust
-use allsorts::subset::phase2::pdf::{subset_and_map_for_pdf, PdfFontContext};
+use allsorts::subset::pdf::{subset_and_map_for_pdf, PdfFontContext};
 
 // Simple Identity-H subsetting
 let context = PdfFontContext::identity_h();

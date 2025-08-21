@@ -15,8 +15,6 @@ pub mod composite;
 pub mod context;
 /// PDF-specific font subsetting features
 pub mod pdf;
-/// Phase 2 API enhancements
-pub mod phase2;
 /// Enhanced result structures for subsetting operations
 pub mod result;
 /// Validation and debugging utilities for font subsetting

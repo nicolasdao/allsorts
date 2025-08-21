@@ -85,6 +85,11 @@ impl<'a> SubsetBuilder<'a> {
         self
     }
 
+    /// Add glyphs for specific text (alias for with_characters, Phase 2 compatibility)
+    pub fn with_text(self, text: &str) -> Result<Self, SubsetError> {
+        self.with_characters(text)
+    }
+    
     /// Add glyphs for specific characters
     pub fn with_characters(mut self, chars: &str) -> Result<Self, SubsetError> {
         // Map characters to glyph IDs using cmap
@@ -110,12 +115,11 @@ impl<'a> SubsetBuilder<'a> {
     /// Configure for PDF embedding
     pub fn for_pdf(mut self, max_cid: u16) -> Self {
         self.profile = SubsetProfile::Pdf;
-        self.pdf_context = Some(PdfFontContext {
-            cid_to_gid_map: None,
+        self.pdf_context = Some(PdfFontContext::legacy(
             max_cid,
-            is_cid_font: true,
-            writing_mode: WritingMode::Horizontal,
-        });
+            true,  // is_cid_font
+            WritingMode::Horizontal,
+        ));
         self.fix_composites = true; // Auto-enable for PDF
         self
     }
@@ -149,6 +153,54 @@ impl<'a> SubsetBuilder<'a> {
     /// Set cmap target format
     pub fn with_cmap_target(mut self, target: CmapTarget) -> Self {
         self.cmap_target = target;
+        self
+    }
+    
+    /// Set Identity-H encoding (Phase 2 enhancement)
+    pub fn identity_h(mut self) -> Self {
+        use crate::subset::context::FontEncoding;
+        if self.pdf_context.is_none() {
+            self.pdf_context = Some(PdfFontContext::identity_h());
+        } else if let Some(ref mut ctx) = self.pdf_context {
+            ctx.encoding = FontEncoding::Identity { vertical: false };
+            ctx.writing_mode = WritingMode::Horizontal;
+        }
+        self
+    }
+    
+    /// Set Identity-V encoding (Phase 2 enhancement)
+    pub fn identity_v(mut self) -> Self {
+        use crate::subset::context::FontEncoding;
+        if self.pdf_context.is_none() {
+            self.pdf_context = Some(PdfFontContext::identity_v());
+        } else if let Some(ref mut ctx) = self.pdf_context {
+            ctx.encoding = FontEncoding::Identity { vertical: true };
+            ctx.writing_mode = WritingMode::Vertical;
+        }
+        self
+    }
+    
+    /// Set maximum CID value (Phase 2 enhancement)
+    pub fn with_max_cid(mut self, max_cid: u16) -> Self {
+        if let Some(ref mut ctx) = self.pdf_context {
+            ctx.max_cid = Some(max_cid);
+        }
+        self
+    }
+    
+    /// Preserve identity mapping (Phase 2 enhancement)
+    pub fn preserve_identity(mut self) -> Self {
+        if let Some(ref mut ctx) = self.pdf_context {
+            ctx.preserve_identity = true;
+        }
+        self
+    }
+    
+    /// Mark as symbolic font (Phase 2 enhancement)
+    pub fn symbolic(mut self) -> Self {
+        if let Some(ref mut ctx) = self.pdf_context {
+            ctx.is_symbolic = true;
+        }
         self
     }
 
@@ -308,3 +360,11 @@ fn get_glyph_count(provider: &dyn FontTableProvider) -> Result<u16, ParseError> 
     let maxp = ReadScope::new(&maxp_data).read::<MaxpTable>()?;
     Ok(maxp.num_glyphs)
 }
+
+/// Convenience function to create a PDF subset builder (Phase 2 enhancement)
+pub fn subset_for_pdf(provider: &dyn FontTableProvider) -> SubsetBuilder<'_> {
+    SubsetBuilder::new(provider)
+}
+
+/// PDF-specific builder wrapper for compatibility with Phase 2 tests
+pub type PdfSubsetBuilder<'a> = SubsetBuilder<'a>;

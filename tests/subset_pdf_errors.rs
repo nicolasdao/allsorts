@@ -3,7 +3,7 @@
 use allsorts::subset::SubsetError;
 use allsorts::tables::OpenTypeFont;
 use allsorts::binary::read::ReadScope;
-use allsorts::subset::phase2::{subset_and_map_for_pdf, PdfFontContext};
+use allsorts::subset::pdf::{subset_and_map_for_pdf, PdfFontContext};
 
 
 #[test]
