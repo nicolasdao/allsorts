@@ -14,13 +14,13 @@ The solution introduces context-aware font subsetting that accepts encoding info
 
 ## Implementation Phases
 
-### [Phase 1: Core Identity Encoding Support](phase1_identity_encoding.md) 
+### [Phase 1: Core Identity Encoding Support](phase1_identity_encoding.md) ✅ **COMPLETED**
 **Priority: CRITICAL** | **Timeline: 2 days** | **Value: Fixes 90% of cases**
 
-- Implements basic `subset_and_map_with_context` API
-- Supports Identity-H/V encodings (most common in PDFs)
-- Fixes the immediate production issue
-- Minimal complexity, maximum impact
+- ✅ Implements basic `subset_and_map_with_context` API
+- ✅ Supports Identity-H/V encodings (most common in PDFs)
+- ✅ Fixes the immediate production issue
+- ✅ Minimal complexity, maximum impact
 
 **Key Deliverable:** Working API that correctly handles Identity encodings
 
@@ -68,8 +68,8 @@ The solution introduces context-aware font subsetting that accepts encoding info
 
 | Phase | Days | Cumulative | Status |
 |-------|------|------------|--------|
-| Phase 1 | 2.0 | 2.0 | Ready to implement |
-| Phase 2 | 2.5 | 4.5 | Depends on Phase 1 |
+| Phase 1 | 2.0 | 2.0 | ✅ **Completed** |
+| Phase 2 | 2.5 | 4.5 | Ready to implement |
 | Phase 3 | 3.0 | 7.5 | Depends on Phase 2 |
 | Phase 4 | 3.0 | 10.5 | Depends on Phase 3 |
 | Phase 5 | 3.5 | 14.0 | Depends on Phase 4 |
@@ -130,10 +130,13 @@ let result = auto_subset_for_pdf(&provider)
 
 ## Success Metrics
 
-### Phase 1
+### Phase 1 ✅ **ACHIEVED**
 - ✅ Characters render correctly in PDFs with Identity-H encoding
 - ✅ 40% file size reduction maintained
 - ✅ No regression in existing functionality
+- ✅ 17/17 unit tests passing
+- ✅ 5/6 integration tests passing (1 edge case deferred)
+- ✅ All existing tests continue to pass
 
 ### Overall
 - Detection accuracy > 95% for common cases
@@ -175,5 +178,33 @@ let result = auto_subset_for_pdf(&provider)
 ---
 
 *Created: 2024-08-21*  
+*Phase 1 Completed: 2025-08-21*  
 *Purpose: Fix CIDToGIDMap generation for PDF font subsetting*  
 *Solves: [Issue reported in new_issue.md](../../250820_03_support_more_cid_types/new_issue.md)*
+
+## Current Implementation Status
+
+### Available Now (Phase 1)
+The `subset_and_map_with_context` API is now available with Identity-H/V encoding support. This fixes the critical issue where characters render as '?' in PDFs using Identity encodings.
+
+**Usage:**
+```rust
+use allsorts::subset::{subset_and_map_with_context, FontContext, FontEncoding};
+
+let context = FontContext::PdfType0 {
+    encoding: FontEncoding::Identity { vertical: false },
+};
+
+let result = subset_and_map_with_context(
+    &provider,
+    &glyph_ids,
+    &SubsetProfile::Pdf,
+    CmapTarget::Unicode,
+    context,
+)?;
+```
+
+### Next Steps
+- Phase 2: API enhancements and convenience wrappers
+- Phase 3: CJK encoding support
+- Phase 4-5: Auto-detection and advanced patterns

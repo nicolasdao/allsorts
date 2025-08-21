@@ -2,10 +2,17 @@
 
 //! Font subsetting.
 
+// Re-export commonly used types
+pub use self::context::{FontContext, FontEncoding};
+
 /// Builder pattern API for font subsetting
 pub mod builder;
+/// CIDToGIDMap generation for font subsetting
+pub mod cid_map;
 /// Composite glyph reference updating for subsetted fonts
 pub mod composite;
+/// Font encoding context for subsetting operations
+pub mod context;
 /// PDF-specific font subsetting features
 pub mod pdf;
 /// Enhanced result structures for subsetting operations
@@ -392,6 +399,96 @@ pub fn subset_and_map_with_hint(
         let max_cid = determine_max_cid(provider, glyph_ids);
         let cid_to_gid_map = build_cid_to_gid_map(None, &glyph_mapping, max_cid);
 
+        Ok(SubsetResult::Cid {
+            font_data,
+            glyph_mapping,
+            cid_to_gid_map,
+        })
+    } else {
+        Ok(SubsetResult::Simple {
+            font_data,
+            glyph_mapping,
+        })
+    }
+}
+
+/// Create a subset font with glyph ID mapping and context-aware CID support
+///
+/// This function extends `subset_and_map` by accepting a context parameter that
+/// provides information about how the font will be used, enabling correct
+/// CIDToGIDMap generation for PDF embedding.
+///
+/// # Arguments
+/// * `provider` - Font table provider
+/// * `glyph_ids` - List of glyph IDs to include (must start with 0/.notdef)
+/// * `profile` - Subset profile determining which tables to include
+/// * `cmap_target` - Target character mapping format
+/// * `context` - Usage context for the font (e.g., PDF encoding information)
+///
+/// # Returns
+/// * `SubsetResult::Simple` for standard fonts
+/// * `SubsetResult::Cid` for CID fonts with correct CIDToGIDMap
+///
+/// # Example
+/// ```rust,ignore
+/// use allsorts::subset::{subset_and_map_with_context, FontContext, FontEncoding};
+/// 
+/// let context = FontContext::PdfType0 {
+///     encoding: FontEncoding::Identity { vertical: false },
+/// };
+/// 
+/// let result = subset_and_map_with_context(
+///     &provider,
+///     &[0, 42, 43],
+///     &SubsetProfile::Pdf,
+///     CmapTarget::Unicode,
+///     context,
+/// )?;
+/// 
+/// if let SubsetResult::Cid { cid_to_gid_map, .. } = result {
+///     // Use the correctly generated CIDToGIDMap for PDF embedding
+///     pdf_font.set_cid_to_gid_map(cid_to_gid_map);
+/// }
+/// ```
+pub fn subset_and_map_with_context(
+    provider: &impl FontTableProvider,
+    glyph_ids: &[u16],
+    profile: &SubsetProfile,
+    cmap_target: CmapTarget,
+    context: context::FontContext,
+) -> Result<SubsetResult, SubsetError> {
+    use crate::subset::context::FontContext;
+    use crate::subset::cid_map::{build_cid_to_gid_map_for_encoding, determine_max_cid as determine_max_cid_context};
+    
+    // Step 1: Perform standard subsetting with mapping
+    let (font_data, glyph_mapping) =
+        subset_with_mapping(provider, glyph_ids, profile, cmap_target)?;
+    
+    // Step 2: Determine if CID treatment is needed
+    let needs_cid = match &context {
+        FontContext::PdfType0 { encoding } => encoding.requires_cid(),
+        FontContext::Unknown => {
+            // Fall back to existing detection logic
+            detect_cid_font(provider, glyph_ids)
+        }
+    };
+    
+    // Step 3: Generate appropriate result
+    if needs_cid {
+        let max_cid = determine_max_cid_context(&context, glyph_ids);
+        
+        // Generate CIDToGIDMap based on encoding
+        let cid_to_gid_map = match &context {
+            FontContext::PdfType0 { encoding } => {
+                build_cid_to_gid_map_for_encoding(encoding, &glyph_mapping, max_cid)?
+            }
+            FontContext::Unknown => {
+                // Fall back to existing (potentially incorrect) generation
+                // This maintains backward compatibility
+                build_cid_to_gid_map(None, &glyph_mapping, max_cid)
+            }
+        };
+        
         Ok(SubsetResult::Cid {
             font_data,
             glyph_mapping,
