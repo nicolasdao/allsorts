@@ -1,0 +1,182 @@
+warning: unnecessary parentheses around `if` condition
+   --> src/subset/context.rs:132:12
+    |
+132 |         if (name == "B5pc-H" || name == "B5pc-V" || 
+    |            ^
+133 |             name.starts_with("ETen-B5-") || 
+134 |             name.starts_with("HKscs-B5-")) {
+    |                                          ^
+    |
+    = note: `#[warn(unused_parens)]` on by default
+help: remove these parentheses
+    |
+132 ~         if name == "B5pc-H" || name == "B5pc-V" || 
+133 |             name.starts_with("ETen-B5-") || 
+134 ~             name.starts_with("HKscs-B5-") {
+    |
+
+warning: unused variable: `is_cid_font`
+  --> src/subset/pdf.rs:90:33
+   |
+90 |     pub fn legacy(max_cid: u16, is_cid_font: bool, writing_mode: WritingMode) -> Self {
+   |                                 ^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_is_cid_font`
+   |
+   = note: `#[warn(unused_variables)]` on by default
+
+warning: unused variable: `requested_glyphs`
+   --> src/subset/pdf.rs:436:5
+    |
+436 |     requested_glyphs: usize,
+    |     ^^^^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_requested_glyphs`
+
+warning: `allsorts` (lib) generated 3 warnings (run `cargo fix --lib -p allsorts` to apply 1 suggestion)
+warning: `allsorts` (lib test) generated 3 warnings (3 duplicates)
+   Compiling allsorts v0.15.0 (/Users/nicolasdao/Documents/projects/storyleaps/bobninja/opensource-libs/allsorts)
+warning: unused import: `PdfFontType`
+ --> tests/subset_pdf_context.rs:5:45
+  |
+5 | use allsorts::subset::pdf::{PdfFontContext, PdfFontType};
+  |                                             ^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` on by default
+
+warning: `allsorts` (test "subset_pdf_context") generated 1 warning (run `cargo fix --test "subset_pdf_context"` to apply 1 suggestion)
+warning: unexpected `cfg` condition name: `notest`
+    --> tests/indic.rs:1055:7
+     |
+1055 | #[cfg(notest)] // Bogus flag to skip test compilation
+     |       ^^^^^^ help: there is a config with a similar name: `doctest`
+     |
+     = help: consider using a Cargo feature instead
+     = help: or consider adding in `Cargo.toml` the `check-cfg` lint config for the lint:
+              [lints.rust]
+              unexpected_cfgs = { level = "warn", check-cfg = ['cfg(notest)'] }
+     = help: or consider adding `println!("cargo::rustc-check-cfg=cfg(notest)");` to the top of the `build.rs`
+     = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+     = note: `#[warn(unexpected_cfgs)]` on by default
+
+warning: `allsorts` (test "indic") generated 1 warning
+warning: unused import: `allsorts::subset::builder::subset_for_pdf`
+ --> tests/subset_pdf_integration.rs:7:5
+  |
+7 | use allsorts::subset::builder::subset_for_pdf;
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` on by default
+
+warning: unused import: `HashMap`
+  --> tests/subset_and_map_simple_validation.rs:11:28
+   |
+11 |     use std::collections::{HashMap, HashSet};
+   |                            ^^^^^^^
+   |
+   = note: `#[warn(unused_imports)]` on by default
+
+warning: unused import: `FontTableProvider`
+ --> tests/subset_and_map.rs:9:28
+  |
+9 |     use allsorts::tables::{FontTableProvider, OpenTypeFont};
+  |                            ^^^^^^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` on by default
+
+warning: unused import: `std::collections::HashMap`
+  --> tests/subset_and_map.rs:11:9
+   |
+11 |     use std::collections::HashMap;
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused variable: `glyph_mapping`
+   --> tests/subset_and_map.rs:522:17
+    |
+522 |                 glyph_mapping,
+    |                 ^^^^^^^^^^^^^-
+    |                 |
+    |                 help: try removing the field
+    |
+    = note: `#[warn(unused_variables)]` on by default
+
+warning: unused import: `std::collections::HashMap`
+ --> tests/subset_pdf_api.rs:6:5
+  |
+6 | use std::collections::HashMap;
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` on by default
+
+warning: unused imports: `PdfFontType` and `PdfSubsetResult`
+ --> tests/subset_pdf_api.rs:7:69
+  |
+7 | use allsorts::subset::pdf::{subset_and_map_for_pdf, PdfFontContext, PdfSubsetResult, PdfFontType};
+  |                                                                     ^^^^^^^^^^^^^^^  ^^^^^^^^^^^
+
+warning: `allsorts` (test "subset_pdf_api") generated 2 warnings (run `cargo fix --test "subset_pdf_api"` to apply 2 suggestions)
+warning: unused import: `SubsetBuilder`
+ --> tests/subset_pdf_builder.rs:6:33
+  |
+6 | use allsorts::subset::builder::{SubsetBuilder, subset_for_pdf, PdfSubsetBuilder};
+  |                                 ^^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` on by default
+
+warning: `allsorts` (test "subset_pdf_builder") generated 1 warning (run `cargo fix --test "subset_pdf_builder"` to apply 1 suggestion)
+error[E0004]: non-exhaustive patterns: `FontEncoding::CJK { .. }`, `FontEncoding::AdobeCollection { .. }` and `FontEncoding::Custom(_)` not covered
+  --> tests/subset_context_tests.rs:12:15
+   |
+12 |         match encoding {
+   |               ^^^^^^^^ patterns `FontEncoding::CJK { .. }`, `FontEncoding::AdobeCollection { .. }` and `FontEncoding::Custom(_)` not covered
+   |
+note: `FontEncoding` defined here
+  --> /Users/nicolasdao/Documents/projects/storyleaps/bobninja/opensource-libs/allsorts/src/subset/context.rs:49:1
+   |
+49 | pub enum FontEncoding {
+   | ^^^^^^^^^^^^^^^^^^^^^
+...
+58 |     CJK {
+   |     --- not covered
+...
+70 |     AdobeCollection {
+   |     --------------- not covered
+...
+80 |     Custom(String),
+   |     ------ not covered
+   = note: the matched value is of type `FontEncoding`
+help: ensure that all possible cases are being handled by adding a match arm with a wildcard pattern, a match arm with multiple or-patterns as shown, or multiple match arms
+   |
+13 ~             FontEncoding::Identity { vertical } => assert!(!vertical),
+14 ~             FontEncoding::CJK { .. } | FontEncoding::AdobeCollection { .. } | FontEncoding::Custom(_) => todo!(),
+   |
+
+error[E0004]: non-exhaustive patterns: `FontEncoding::CJK { .. }`, `FontEncoding::AdobeCollection { .. }` and `FontEncoding::Custom(_)` not covered
+  --> tests/subset_context_tests.rs:21:15
+   |
+21 |         match encoding {
+   |               ^^^^^^^^ patterns `FontEncoding::CJK { .. }`, `FontEncoding::AdobeCollection { .. }` and `FontEncoding::Custom(_)` not covered
+   |
+note: `FontEncoding` defined here
+  --> /Users/nicolasdao/Documents/projects/storyleaps/bobninja/opensource-libs/allsorts/src/subset/context.rs:49:1
+   |
+49 | pub enum FontEncoding {
+   | ^^^^^^^^^^^^^^^^^^^^^
+...
+58 |     CJK {
+   |     --- not covered
+...
+70 |     AdobeCollection {
+   |     --------------- not covered
+...
+80 |     Custom(String),
+   |     ------ not covered
+   = note: the matched value is of type `FontEncoding`
+help: ensure that all possible cases are being handled by adding a match arm with a wildcard pattern, a match arm with multiple or-patterns as shown, or multiple match arms
+   |
+22 ~             FontEncoding::Identity { vertical } => assert!(vertical),
+23 ~             FontEncoding::CJK { .. } | FontEncoding::AdobeCollection { .. } | FontEncoding::Custom(_) => todo!(),
+   |
+
+For more information about this error, try `rustc --explain E0004`.
+warning: `allsorts` (test "subset_pdf_integration") generated 1 warning (run `cargo fix --test "subset_pdf_integration"` to apply 1 suggestion)
+error: could not compile `allsorts` (test "subset_context_tests") due to 2 previous errors
+warning: build failed, waiting for other jobs to finish...
+warning: `allsorts` (test "subset_and_map_simple_validation") generated 1 warning (run `cargo fix --test "subset_and_map_simple_validation"` to apply 1 suggestion)
+warning: `allsorts` (test "subset_and_map") generated 3 warnings (run `cargo fix --test "subset_and_map"` to apply 3 suggestions)

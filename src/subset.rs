@@ -9,6 +9,8 @@ pub use self::context::{FontContext, FontEncoding};
 pub mod builder;
 /// CIDToGIDMap generation for font subsetting
 pub mod cid_map;
+/// CJK font encoding support and CMap data handling
+pub mod cjk;
 /// Composite glyph reference updating for subsetted fonts
 pub mod composite;
 /// Font encoding context for subsetting operations

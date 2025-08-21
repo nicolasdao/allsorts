@@ -43,6 +43,19 @@ pub fn build_cid_to_gid_map_for_encoding(
         FontEncoding::Identity { .. } => {
             Ok(build_identity_cid_map(glyph_mapping, max_cid))
         }
+        FontEncoding::CJK { .. } => {
+            // For now, CJK encodings will be handled in a future phase
+            // This is a placeholder that returns an error
+            Err(SubsetError::UnsupportedEncoding("CJK encodings not yet implemented".to_string()))
+        }
+        FontEncoding::AdobeCollection { .. } => {
+            // Adobe collections will be handled similarly to CJK
+            Err(SubsetError::UnsupportedEncoding("Adobe collections not yet implemented".to_string()))
+        }
+        FontEncoding::Custom(_) => {
+            // Custom encodings are not supported for CID mapping
+            Err(SubsetError::UnsupportedEncoding("Custom encodings not supported".to_string()))
+        }
     }
 }
 
@@ -56,6 +69,15 @@ pub fn determine_max_cid(
             match encoding {
                 FontEncoding::Identity { .. } => {
                     // For Identity, max CID equals max original GID
+                    glyph_ids.iter().copied().max().unwrap_or(0)
+                }
+                FontEncoding::CJK { .. } | FontEncoding::AdobeCollection { .. } => {
+                    // For CJK and Adobe collections, we'll need to consult CMap data
+                    // For now, use a conservative estimate
+                    glyph_ids.iter().copied().max().unwrap_or(0).max(8000)
+                }
+                FontEncoding::Custom(_) => {
+                    // Conservative: use the highest glyph ID
                     glyph_ids.iter().copied().max().unwrap_or(0)
                 }
             }

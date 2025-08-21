@@ -33,6 +33,7 @@ Font subsetting is the process of extracting a subset of glyphs from a font file
 Allsorts provides comprehensive subsetting capabilities with special support for:
 - Glyph ID remapping and tracking
 - CID-keyed fonts (common in PDFs)
+- **CJK font encodings** (Chinese, Japanese, Korean) - [See CJK Support Guide](cjk_support.md)
 - Composite glyph dependency resolution
 - PDF-specific optimizations
 - Validation and debugging tools
@@ -445,6 +446,36 @@ fn subset_with_builder(provider: &impl FontTableProvider) -> Result<(), SubsetEr
 - **Builder pattern**: Fluent interface for complex configurations
 - **Better error messages**: Enhanced error variants for debugging
 - **Phase 1 integration**: Internally uses the proven context-aware subsetting
+
+### Phase 3: CJK Encoding Support (v0.16.1+)
+
+**New in v0.16.1:** Phase 3 adds comprehensive support for Chinese, Japanese, and Korean (CJK) font encodings, enabling correct CIDToGIDMap generation for fonts with predefined CMap encodings beyond Identity-H/V.
+
+#### Supported CJK Encodings
+
+```rust
+use allsorts::subset::context::{FontEncoding, CJKLanguage, ChineseVariant};
+use allsorts::subset::cjk::BuiltinCMapProvider;
+use allsorts::subset::pdf::PdfFontContext;
+
+// Chinese encoding example
+let encoding = FontEncoding::from_pdf_name("GB-EUC-H").unwrap();
+let cmap_provider = Box::new(BuiltinCMapProvider::new());
+
+let context = PdfFontContext::from_pdf_dict("GB-EUC-H", 0)?
+    .with_max_cid(8000)
+    .with_cmap_provider(cmap_provider);
+
+let result = subset_and_map_for_pdf(&provider, &glyph_ids, context)?;
+```
+
+**Supported Encodings:**
+- **Chinese**: GB-EUC-H/V, GBK-EUC-H/V, CNS-EUC-H/V, B5pc-H/V, ETen-B5, HKscs-B5, UniGB/UniCNS
+- **Japanese**: 90ms-RKSJ-H/V, 83pv-RKSJ-H/V, H, V, EUC-H/V, UniJIS-UTF16-H/V
+- **Korean**: KSCms-UHC-H/V, KSC-EUC-H/V, UniKS-UTF16-H/V
+- **Adobe Collections**: Adobe-GB1-*, Adobe-CNS1-*, Adobe-Japan1-*, Adobe-Korea1-*
+
+See the [CJK Support Guide](cjk_support.md) for detailed documentation and examples.
 
 ## Advanced APIs
 

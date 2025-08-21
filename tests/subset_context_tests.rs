@@ -7,19 +7,19 @@ mod phase1_context_tests {
     // BASIC ENUM CONSTRUCTION TESTS
     #[test]
     fn test_font_encoding_identity_h() {
-        // WILL FAIL: FontEncoding not implemented yet
         let encoding = FontEncoding::Identity { vertical: false };
         match encoding {
             FontEncoding::Identity { vertical } => assert!(!vertical),
+            _ => panic!("Expected Identity encoding"),
         }
     }
 
     #[test]
     fn test_font_encoding_identity_v() {
-        // WILL FAIL: FontEncoding not implemented yet
         let encoding = FontEncoding::Identity { vertical: true };
         match encoding {
             FontEncoding::Identity { vertical } => assert!(vertical),
+            _ => panic!("Expected Identity encoding"),
         }
     }
 
@@ -40,9 +40,8 @@ mod phase1_context_tests {
 
     #[test]
     fn test_font_encoding_from_pdf_name_unsupported() {
-        // WILL FAIL: from_pdf_name method not implemented yet
-        // Phase 1: Other encodings return None
-        let encoding = FontEncoding::from_pdf_name("GB-EUC-H");
+        // Test that truly unsupported encodings return None
+        let encoding = FontEncoding::from_pdf_name("UnknownEncoding");
         assert_eq!(encoding, None);
     }
 
