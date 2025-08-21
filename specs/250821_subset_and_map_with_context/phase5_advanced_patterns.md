@@ -1,86 +1,985 @@
-# Phase 5: Advanced Pattern Detection
+Read @README.md and the @docs/subsetting.md to understand this project and its current subsetting capabilities and APIs and then read @specs/250821_subset_and_map_with_context/README.md to understand the general context of the current upcoming changes and then implement the new changes below:
+
+# Phase 5: Advanced Pattern Detection (TDD Implementation)
 
 ## Executive Summary
 
 Implement advanced pattern detection algorithms to handle edge cases and improve detection accuracy. This phase adds machine learning-inspired techniques, entropy analysis, and adaptive pattern learning to handle previously unseen font patterns.
 
-## 1. What We're Building
+**Prerequisites:** Phases 1-4 must be complete with all tests passing.
 
-### 1.1 Advanced Detection Components
+## TDD Implementation Steps
+
+This phase follows Test-Driven Development methodology:
+
+1. **Preparation:** Verify test health and review dependencies
+2. **Analysis & Planning:** Design advanced pattern detection architecture
+3. **Define APIs & Signatures:** Draft interfaces without implementation
+4. **Write Unit Tests (TDD):** Create comprehensive failing tests first
+5. **Implement Functions Incrementally:** Minimal implementation to pass tests
+6. **Full-Suite Integration:** Run all tests and fix regressions
+7. **Documentation & Review:** Update docs and conduct peer review
+
+---
+
+## 1. Preparation
+
+### 1.1 Verify Dependencies
+
+**Prerequisites Check:**
+```bash
+# Verify Phases 1-4 are complete
+cargo test subset::detection::basic
+cargo test subset::detection::context  
+cargo test subset::optimization
+cargo test subset::validation
+```
+
+All tests must pass before proceeding.
+
+### 1.2 Review Documentation
+
+- Read Phase 1-4 specifications for context
+- Review `src/subset/detection/mod.rs` architecture
+- Understand existing encoding detection flow
+
+---
+
+## 2. Analysis & Planning
+
+### 2.1 High-Level Design
+
+**Goal:** Add advanced pattern detection with ML-inspired techniques for edge cases:
+- Re-subset font detection using entropy analysis
+- Symbolic font clustering using DBSCAN-inspired algorithms  
+- Adaptive pattern learning with persistence
+- Mixed script and variable font detection
+
+**Affected Modules:**
+- `src/subset/advanced/` (new module)
+- `src/subset/detection/mod.rs` (integration)
+- Test suite expansion
+
+### 2.2 Break Down Into Tasks
+
+| Component | Purpose | Dependencies |
+|-----------|---------|--------------|
+| EntropyAnalyzer | Re-subset detection via gap entropy | GlyphStatistics |
+| ClusterDetector | DBSCAN clustering for patterns | None |
+| SequenceAnalyzer | CJK/structured font patterns | StateMachine |
+| PatternLearner | Adaptive learning with persistence | serde |
+| AdvancedDetector | Integration with base detection | All above |
+
+### 2.3 Edge Cases & Constraints
+
+**Re-subset Detection:**
+- Fonts already subset multiple times
+- Non-sequential glyph IDs
+- High entropy gaps between glyphs
+- Mixed original font types
+
+**Symbolic Fonts:**
+- Corporate/custom symbol mappings
+- Non-standard Unicode ranges
+- Clustered glyph patterns
+- Small glyph counts
+
+**Performance Constraints:**
+- Advanced analysis < 5ms
+- Pattern learning overhead < 10%
+- Memory usage < 1MB for patterns
+
+---
+
+## 3. Define APIs & Signatures
+
+### 3.1 Core Interfaces
+
+| Component | Method | Inputs | Outputs | Error Cases |
+|-----------|--------|--------|---------|-------------|
+| `EntropyAnalyzer::analyze_resubset_probability` | `&[u16]` | `ResubsetAnalysis` | Invalid glyph data |
+| `ClusterDetector::detect_clusters` | `&[u16]` | `Vec<GlyphCluster>` | Empty input |
+| `PatternLearner::predict` | `&FeatureVector` | `Option<PredictionResult>` | No patterns learned |
+| `PatternLearner::learn_success` | `FeatureVector, FontEncoding` | `()` | Persistence failure |
+| `AdvancedDetector::detect_advanced` | `&[u16], Option<&PdfFontInfo>` | `AdvancedDetectionResult` | All detection failures |
+
+### 3.2 Data Structures
 
 ```rust
-/// Advanced pattern analyzer with ML-inspired techniques
-pub struct AdvancedPatternAnalyzer {
-    entropy_analyzer: EntropyAnalyzer,
-    cluster_detector: ClusterDetector,
-    sequence_analyzer: SequenceAnalyzer,
-    pattern_learner: PatternLearner,
+// Core analysis structures - signatures only
+pub struct AdvancedPatternAnalyzer;
+pub struct EntropyAnalyzer;
+pub struct ClusterDetector;
+pub struct SequenceAnalyzer;
+pub struct PatternLearner;
+
+// Results and analysis
+pub struct ResubsetAnalysis;
+pub struct GlyphCluster;
+pub struct FeatureVector;
+pub struct LearnedPattern;
+pub struct AdvancedDetectionResult;
+
+// Pattern types
+pub enum AdvancedPatternType;
+pub enum ClusterPatternType;
+pub enum ResubsetIndicator;
+```
+
+---
+
+## 4. Write Unit Tests (TDD)
+
+### 4.1 Test File Structure
+
+```
+tests/subset/advanced/
+├── entropy_tests.rs           # Entropy analysis tests
+├── clustering_tests.rs        # Cluster detection tests  
+├── learning_tests.rs          # Pattern learning tests
+├── integration_tests.rs       # Advanced detector tests
+└── fixtures/
+    ├── resubset_fonts.json    # Test data for re-subset fonts
+    ├── symbolic_fonts.json    # Test data for symbolic fonts
+    └── learned_patterns.json  # Test pattern data
+```
+
+### 4.2 Entropy Analysis Tests (WILL FAIL)
+
+```rust
+// tests/subset/advanced/entropy_tests.rs
+
+use crate::subset::advanced::entropy::{EntropyAnalyzer, ResubsetIndicator};
+
+#[test]
+fn test_high_entropy_indicates_resubset() {
+    // WILL FAIL - EntropyAnalyzer not implemented yet
+    let analyzer = EntropyAnalyzer::new();
+    
+    // Re-subset font pattern: irregular gaps, non-sequential
+    let resubset_glyphs = vec![0, 15, 23, 45, 78, 156, 234, 456, 789, 1234];
+    
+    let analysis = analyzer.analyze_resubset_probability(&resubset_glyphs);
+    
+    assert!(analysis.probability > 0.7, "Should detect high re-subset probability");
+    assert!(analysis.gap_entropy > 3.5, "Should have high entropy");
+    assert!(analysis.indicators.contains(&ResubsetIndicator::IrregularGaps));
 }
 
-/// Entropy-based analysis for re-subset detection
-pub struct EntropyAnalyzer {
-    gap_entropy_threshold: f32,
-    distribution_analyzer: DistributionAnalyzer,
+#[test]
+fn test_low_entropy_indicates_original_font() {
+    // WILL FAIL - EntropyAnalyzer not implemented yet
+    let analyzer = EntropyAnalyzer::new();
+    
+    // Original font pattern: sequential, low gaps
+    let original_glyphs = (0..100).collect::<Vec<u16>>();
+    
+    let analysis = analyzer.analyze_resubset_probability(&original_glyphs);
+    
+    assert!(analysis.probability < 0.3, "Should detect low re-subset probability");
+    assert!(analysis.gap_entropy < 2.0, "Should have low entropy");
 }
 
-/// Cluster detection for symbolic and custom fonts
-pub struct ClusterDetector {
-    dbscan: DBSCAN,
-    cluster_profiles: Vec<ClusterProfile>,
+#[test]
+fn test_missing_basic_latin_indicator() {
+    // WILL FAIL - EntropyAnalyzer not implemented yet
+    let analyzer = EntropyAnalyzer::new();
+    
+    // CJK-only font: no ASCII range
+    let cjk_glyphs = (0x4E00..0x4E20).collect::<Vec<u16>>();
+    
+    let analysis = analyzer.analyze_resubset_probability(&cjk_glyphs);
+    
+    assert!(analysis.indicators.contains(&ResubsetIndicator::MissingBasicLatin));
 }
 
-/// Sequence analysis for CJK and structured fonts
-pub struct SequenceAnalyzer {
-    markov_chain: MarkovChain<u16>,
-    sequence_patterns: Vec<SequencePattern>,
+#[test]
+fn test_non_sequential_notdef_indicator() {
+    // WILL FAIL - EntropyAnalyzer not implemented yet
+    let analyzer = EntropyAnalyzer::new();
+    
+    // .notdef at 0, then jump to high GIDs
+    let glyphs = vec![0, 500, 501, 502, 503];
+    
+    let analysis = analyzer.analyze_resubset_probability(&glyphs);
+    
+    assert!(analysis.indicators.contains(&ResubsetIndicator::NonSequentialNotDef));
 }
 
-/// Adaptive pattern learning
-pub struct PatternLearner {
-    learned_patterns: HashMap<String, LearnedPattern>,
-    confidence_threshold: f32,
-    max_patterns: usize,
+#[test]
+fn test_entropy_calculation_empty_input() {
+    // WILL FAIL - EntropyAnalyzer not implemented yet
+    let analyzer = EntropyAnalyzer::new();
+    
+    let analysis = analyzer.analyze_resubset_probability(&[]);
+    
+    assert_eq!(analysis.gap_entropy, 0.0);
+    assert_eq!(analysis.probability, 0.0);
+}
+
+#[test]
+fn test_entropy_calculation_single_glyph() {
+    // WILL FAIL - EntropyAnalyzer not implemented yet
+    let analyzer = EntropyAnalyzer::new();
+    
+    let analysis = analyzer.analyze_resubset_probability(&[42]);
+    
+    assert_eq!(analysis.gap_entropy, 0.0);
+    assert!(analysis.probability < 0.5);
+}
+
+#[test]
+fn test_original_font_type_estimation() {
+    // WILL FAIL - EntropyAnalyzer not implemented yet
+    let analyzer = EntropyAnalyzer::new();
+    
+    // Test CJK estimation
+    let cjk_glyphs = vec![0, 1, 2, 10000, 10001, 15000];
+    let analysis = analyzer.analyze_resubset_probability(&cjk_glyphs);
+    assert_eq!(analysis.original_font_estimate.font_type, FontTypeEstimate::CJK);
+    
+    // Test symbolic estimation  
+    let symbol_glyphs = vec![0, 256, 300, 400, 450];
+    let analysis = analyzer.analyze_resubset_probability(&symbol_glyphs);
+    assert_eq!(analysis.original_font_estimate.font_type, FontTypeEstimate::Symbolic);
+    
+    // Test Latin estimation
+    let latin_glyphs = vec![0, 32, 65, 90, 122, 200];
+    let analysis = analyzer.analyze_resubset_probability(&latin_glyphs);
+    assert_eq!(analysis.original_font_estimate.font_type, FontTypeEstimate::Latin);
 }
 ```
 
-### 1.2 Detection Improvements
+### 4.3 Cluster Detection Tests (WILL FAIL)
 
 ```rust
-pub enum AdvancedPatternType {
-    ResubsetFont,          // Previously subset fonts
-    CustomSymbolic,        // Corporate/custom symbol fonts
-    MixedScript,          // Multi-language fonts
-    VariableFont,         // Variable font instances
-    LegacyEncoding,       // Old/proprietary encodings
-    CompressedMapping,    // Fonts with compressed glyph mappings
+// tests/subset/advanced/clustering_tests.rs
+
+use crate::subset::advanced::clustering::{ClusterDetector, ClusterPatternType};
+
+#[test]
+fn test_sequential_cluster_detection() {
+    // WILL FAIL - ClusterDetector not implemented yet
+    let detector = ClusterDetector::new();
+    
+    // Sequential Latin cluster
+    let glyphs = (32..127).collect::<Vec<u16>>();
+    
+    let clusters = detector.detect_clusters(&glyphs);
+    
+    assert_eq!(clusters.len(), 1);
+    assert_eq!(clusters[0].pattern_type, ClusterPatternType::Sequential);
+    assert!(clusters[0].density > 0.8);
 }
 
-pub struct AdvancedDetectionResult {
-    pub pattern_type: AdvancedPatternType,
-    pub confidence: f32,
-    pub characteristics: PatternCharacteristics,
-    pub recommended_encoding: FontEncoding,
-    pub optimization_hints: Vec<OptimizationHint>,
+#[test]
+fn test_symbolic_cluster_detection() {
+    // WILL FAIL - ClusterDetector not implemented yet
+    let detector = ClusterDetector::new();
+    
+    // Symbolic font cluster in private use area
+    let glyphs = vec![256, 258, 260, 262, 264, 300, 302, 304];
+    
+    let clusters = detector.detect_clusters(&glyphs);
+    
+    assert_eq!(clusters.len(), 1);
+    assert_eq!(clusters[0].pattern_type, ClusterPatternType::Symbolic);
+    assert!(clusters[0].center >= 256 && clusters[0].center <= 1000);
+}
+
+#[test]
+fn test_cjk_cluster_detection() {
+    // WILL FAIL - ClusterDetector not implemented yet
+    let detector = ClusterDetector::new();
+    
+    // Large CJK cluster
+    let glyphs = (0x4E00..0x4F00).collect::<Vec<u16>>();
+    
+    let clusters = detector.detect_clusters(&glyphs);
+    
+    assert_eq!(clusters.len(), 1);
+    assert_eq!(clusters[0].pattern_type, ClusterPatternType::CJKLike);
+    assert!(clusters[0].glyphs.len() > 100);
+}
+
+#[test]
+fn test_multiple_clusters() {
+    // WILL FAIL - ClusterDetector not implemented yet
+    let detector = ClusterDetector::new();
+    
+    // Mixed clusters: ASCII + symbols + CJK
+    let mut glyphs = (32..127).collect::<Vec<u16>>();  // ASCII
+    glyphs.extend(300..350);                           // Symbols
+    glyphs.extend(0x4E00..0x4E20);                    // CJK
+    
+    let clusters = detector.detect_clusters(&glyphs);
+    
+    assert!(clusters.len() >= 2);
+    
+    let has_sequential = clusters.iter().any(|c| c.pattern_type == ClusterPatternType::Sequential);
+    let has_cjk = clusters.iter().any(|c| c.pattern_type == ClusterPatternType::CJKLike);
+    
+    assert!(has_sequential);
+    assert!(has_cjk);
+}
+
+#[test]
+fn test_sparse_cluster_detection() {
+    // WILL FAIL - ClusterDetector not implemented yet
+    let detector = ClusterDetector::new();
+    
+    // Sparse, irregular pattern
+    let glyphs = vec![0, 50, 200, 500, 1000, 2000];
+    
+    let clusters = detector.detect_clusters(&glyphs);
+    
+    // Should either form sparse clusters or be treated as noise
+    if !clusters.is_empty() {
+        assert!(clusters.iter().any(|c| c.pattern_type == ClusterPatternType::Sparse));
+    }
+}
+
+#[test]
+fn test_empty_input_clustering() {
+    // WILL FAIL - ClusterDetector not implemented yet
+    let detector = ClusterDetector::new();
+    
+    let clusters = detector.detect_clusters(&[]);
+    
+    assert!(clusters.is_empty());
+}
+
+#[test]
+fn test_single_glyph_clustering() {
+    // WILL FAIL - ClusterDetector not implemented yet
+    let detector = ClusterDetector::new();
+    
+    let clusters = detector.detect_clusters(&[42]);
+    
+    // Single point should not form cluster (min_points = 3)
+    assert!(clusters.is_empty());
+}
+
+#[test]
+fn test_cluster_density_calculation() {
+    // WILL FAIL - ClusterDetector not implemented yet
+    let detector = ClusterDetector::new();
+    
+    // Dense cluster: consecutive glyphs
+    let dense_glyphs = (100..110).collect::<Vec<u16>>();
+    let dense_clusters = detector.detect_clusters(&dense_glyphs);
+    
+    // Sparse cluster: spread out glyphs
+    let sparse_glyphs = vec![100, 102, 104, 106, 108, 150, 152, 154];
+    let sparse_clusters = detector.detect_clusters(&sparse_glyphs);
+    
+    if !dense_clusters.is_empty() && !sparse_clusters.is_empty() {
+        assert!(dense_clusters[0].density > sparse_clusters[0].density);
+    }
 }
 ```
 
-## 2. Why This Phase
+### 4.4 Pattern Learning Tests (WILL FAIL)
 
-### 2.1 Edge Case Coverage
-- **Re-subset Fonts**: 5-10% of PDFs use already-subset fonts
-- **Custom Symbols**: Corporate fonts with non-standard mappings
-- **Mixed Scripts**: Documents with multiple languages
-- **Variable Fonts**: Growing usage in modern PDFs
+```rust
+// tests/subset/advanced/learning_tests.rs
 
-### 2.2 Technical Excellence
-- **Accuracy**: Push detection accuracy to >95%
-- **Adaptability**: Learn from new patterns
-- **Performance**: Optimize for repeated patterns
-- **Robustness**: Handle malformed or unusual fonts
+use crate::subset::advanced::learning::{PatternLearner, FeatureVector};
+use crate::subset::detection::FontEncoding;
+use std::path::Path;
 
-## 3. Technical Implementation
+#[test]
+fn test_pattern_learning_success() {
+    // WILL FAIL - PatternLearner not implemented yet
+    let mut learner = PatternLearner::new();
+    
+    let features = FeatureVector {
+        glyph_count: 50,
+        density: 0.8,
+        max_gid: 200,
+        gap_entropy: 2.5,
+        cluster_count: 1,
+        has_cjk: false,
+        has_latin: true,
+        has_symbolic: false,
+        sequential_ratio: 0.9,
+    };
+    
+    let encoding = FontEncoding::WinAnsiEncoding;
+    
+    learner.learn_success(features.clone(), encoding.clone());
+    
+    let prediction = learner.predict(&features);
+    assert!(prediction.is_some());
+    
+    let result = prediction.unwrap();
+    assert_eq!(result.encoding, encoding);
+    assert!(result.confidence > 0.5);
+}
 
-### 3.1 File Structure
+#[test]
+fn test_pattern_learning_failure() {
+    // WILL FAIL - PatternLearner not implemented yet
+    let mut learner = PatternLearner::new();
+    
+    let features = FeatureVector {
+        glyph_count: 50,
+        density: 0.8,
+        max_gid: 200,
+        gap_entropy: 2.5,
+        cluster_count: 1,
+        has_cjk: false,
+        has_latin: true,
+        has_symbolic: false,
+        sequential_ratio: 0.9,
+    };
+    
+    // Learn success first
+    learner.learn_success(features.clone(), FontEncoding::WinAnsiEncoding);
+    let initial_prediction = learner.predict(&features).unwrap();
+    let initial_confidence = initial_prediction.confidence;
+    
+    // Then learn failure
+    learner.learn_failure(features.clone());
+    
+    let updated_prediction = learner.predict(&features);
+    if let Some(result) = updated_prediction {
+        assert!(result.confidence < initial_confidence);
+    }
+}
+
+#[test]
+fn test_pattern_similarity_matching() {
+    // WILL FAIL - PatternLearner not implemented yet
+    let mut learner = PatternLearner::new();
+    
+    let base_features = FeatureVector {
+        glyph_count: 100,
+        density: 0.7,
+        max_gid: 500,
+        gap_entropy: 3.0,
+        cluster_count: 2,
+        has_cjk: false,
+        has_latin: true,
+        has_symbolic: true,
+        sequential_ratio: 0.6,
+    };
+    
+    learner.learn_success(base_features.clone(), FontEncoding::MacRomanEncoding);
+    
+    // Similar features should match
+    let similar_features = FeatureVector {
+        glyph_count: 105,  // Close to 100
+        density: 0.72,     // Close to 0.7
+        max_gid: 520,      // Close to 500
+        gap_entropy: 3.1,  // Close to 3.0
+        cluster_count: 2,  // Exact match
+        has_cjk: false,    // Exact match
+        has_latin: true,   // Exact match
+        has_symbolic: true, // Exact match
+        sequential_ratio: 0.62, // Close to 0.6
+    };
+    
+    let prediction = learner.predict(&similar_features);
+    assert!(prediction.is_some());
+    assert!(prediction.unwrap().confidence > 0.7);
+    
+    // Very different features should not match
+    let different_features = FeatureVector {
+        glyph_count: 10,
+        density: 0.1,
+        max_gid: 50,
+        gap_entropy: 1.0,
+        cluster_count: 0,
+        has_cjk: true,
+        has_latin: false,
+        has_symbolic: false,
+        sequential_ratio: 0.1,
+    };
+    
+    let no_prediction = learner.predict(&different_features);
+    assert!(no_prediction.is_none() || no_prediction.unwrap().confidence < 0.5);
+}
+
+#[test]
+fn test_pattern_persistence() {
+    // WILL FAIL - PatternLearner not implemented yet
+    let temp_file = "/tmp/test_patterns.json";
+    
+    {
+        let mut learner = PatternLearner::new().with_persistence(temp_file);
+        
+        let features = FeatureVector {
+            glyph_count: 75,
+            density: 0.9,
+            max_gid: 300,
+            gap_entropy: 2.0,
+            cluster_count: 1,
+            has_cjk: false,
+            has_latin: true,
+            has_symbolic: false,
+            sequential_ratio: 0.95,
+        };
+        
+        learner.learn_success(features, FontEncoding::StandardEncoding);
+    }
+    
+    // Load in new instance
+    {
+        let learner = PatternLearner::new().with_persistence(temp_file);
+        
+        let query_features = FeatureVector {
+            glyph_count: 76,
+            density: 0.88,
+            max_gid: 305,
+            gap_entropy: 2.1,
+            cluster_count: 1,
+            has_cjk: false,
+            has_latin: true,
+            has_symbolic: false,
+            sequential_ratio: 0.93,
+        };
+        
+        let prediction = learner.predict(&query_features);
+        assert!(prediction.is_some());
+        assert_eq!(prediction.unwrap().encoding, FontEncoding::StandardEncoding);
+    }
+    
+    // Cleanup
+    let _ = std::fs::remove_file(temp_file);
+}
+
+#[test]
+fn test_pattern_confidence_decay() {
+    // WILL FAIL - PatternLearner not implemented yet
+    let mut learner = PatternLearner::new();
+    
+    let features = FeatureVector {
+        glyph_count: 60,
+        density: 0.6,
+        max_gid: 400,
+        gap_entropy: 2.8,
+        cluster_count: 3,
+        has_cjk: true,
+        has_latin: false,
+        has_symbolic: false,
+        sequential_ratio: 0.4,
+    };
+    
+    // Learn pattern
+    learner.learn_success(features.clone(), FontEncoding::Identity);
+    
+    let initial = learner.predict(&features).unwrap();
+    let initial_confidence = initial.confidence;
+    
+    // Simulate time passage (would need mocking in real implementation)
+    // For now, just test that confidence calculation works
+    assert!(initial_confidence > 0.5);
+    
+    // Multiple failures should reduce confidence
+    for _ in 0..5 {
+        learner.learn_failure(features.clone());
+    }
+    
+    let after_failures = learner.predict(&features);
+    assert!(after_failures.is_none() || after_failures.unwrap().confidence < initial_confidence);
+}
+
+#[test]
+fn test_max_patterns_limit() {
+    // WILL FAIL - PatternLearner not implemented yet
+    let mut learner = PatternLearner::new();
+    
+    // Add patterns up to limit (1000)
+    for i in 0..1005 {
+        let features = FeatureVector {
+            glyph_count: i,
+            density: 0.5,
+            max_gid: (i * 10) as u16,
+            gap_entropy: 2.0,
+            cluster_count: 1,
+            has_cjk: false,
+            has_latin: true,
+            has_symbolic: false,
+            sequential_ratio: 0.7,
+        };
+        
+        learner.learn_success(features, FontEncoding::WinAnsiEncoding);
+    }
+    
+    // Should not exceed max_patterns
+    assert!(learner.learned_patterns.len() <= 1000);
+}
+```
+
+### 4.5 Advanced Detection Integration Tests (WILL FAIL)
+
+```rust
+// tests/subset/advanced/integration_tests.rs
+
+use crate::subset::advanced::{AdvancedDetector, AdvancedPatternType};
+use crate::subset::detection::{DetectionConfidence, MockFontTableProvider};
+
+#[test]
+fn test_resubset_font_detection() {
+    // WILL FAIL - AdvancedDetector not implemented yet
+    let provider = Box::new(MockFontTableProvider::new());
+    let mut detector = AdvancedDetector::new(provider);
+    
+    // Re-subset pattern: high entropy, irregular gaps
+    let resubset_glyphs = vec![0, 15, 23, 45, 78, 156, 234, 456, 789, 1234];
+    
+    let result = detector.detect_advanced(&resubset_glyphs, None);
+    
+    if let Some(advanced_info) = result.advanced_info {
+        assert_eq!(advanced_info.pattern_type, AdvancedPatternType::ResubsetFont);
+    }
+    assert!(result.confidence >= DetectionConfidence::Medium);
+    assert!(result.reasoning.iter().any(|r| r.contains("re-subset") || r.contains("entropy")));
+}
+
+#[test]
+fn test_symbolic_font_detection() {
+    // WILL FAIL - AdvancedDetector not implemented yet
+    let provider = Box::new(MockFontTableProvider::new());
+    let mut detector = AdvancedDetector::new(provider);
+    
+    // Symbolic font pattern: clustered in symbol range
+    let symbolic_glyphs = vec![0, 256, 258, 260, 300, 302, 304, 350, 352, 400];
+    
+    let result = detector.detect_advanced(&symbolic_glyphs, None);
+    
+    if let Some(advanced_info) = result.advanced_info {
+        assert_eq!(advanced_info.pattern_type, AdvancedPatternType::CustomSymbolic);
+    }
+    assert!(result.confidence >= DetectionConfidence::Medium);
+}
+
+#[test]
+fn test_mixed_script_detection() {
+    // WILL FAIL - AdvancedDetector not implemented yet
+    let provider = Box::new(MockFontTableProvider::new());
+    let mut detector = AdvancedDetector::new(provider);
+    
+    // Mixed script: Latin + CJK
+    let mut mixed_glyphs = (32..127).collect::<Vec<u16>>();  // ASCII
+    mixed_glyphs.extend(0x4E00..0x4E20);                    // CJK
+    
+    let result = detector.detect_advanced(&mixed_glyphs, None);
+    
+    if let Some(advanced_info) = result.advanced_info {
+        assert_eq!(advanced_info.pattern_type, AdvancedPatternType::MixedScript);
+    }
+    assert!(result.confidence >= DetectionConfidence::Medium);
+}
+
+#[test]
+fn test_learned_pattern_matching() {
+    // WILL FAIL - AdvancedDetector not implemented yet
+    let provider = Box::new(MockFontTableProvider::new());
+    let mut detector = AdvancedDetector::new(provider);
+    
+    // First, learn a pattern
+    let training_glyphs = (32..100).collect::<Vec<u16>>();
+    let training_result = detector.detect_advanced(&training_glyphs, None);
+    
+    // Simulate successful feedback
+    detector.learn_success(&training_glyphs, &training_result.encoding);
+    
+    // Now test similar pattern
+    let test_glyphs = (35..105).collect::<Vec<u16>>();
+    let test_result = detector.detect_advanced(&test_glyphs, None);
+    
+    assert!(test_result.confidence >= DetectionConfidence::High);
+    assert!(test_result.reasoning.iter().any(|r| r.contains("learned pattern")));
+}
+
+#[test]
+fn test_fallback_to_base_detection() {
+    // WILL FAIL - AdvancedDetector not implemented yet
+    let provider = Box::new(MockFontTableProvider::new());
+    let mut detector = AdvancedDetector::new(provider);
+    
+    // Standard pattern that advanced detection shouldn't claim
+    let standard_glyphs = (32..127).collect::<Vec<u16>>();
+    
+    let result = detector.detect_advanced(&standard_glyphs, None);
+    
+    // Should fall back to base detection
+    assert!(result.advanced_info.is_none() || 
+            result.advanced_info.unwrap().pattern_type != AdvancedPatternType::ResubsetFont);
+    assert!(result.confidence >= DetectionConfidence::Medium);
+}
+
+#[test]
+fn test_performance_constraint() {
+    // WILL FAIL - AdvancedDetector not implemented yet
+    let provider = Box::new(MockFontTableProvider::new());
+    let mut detector = AdvancedDetector::new(provider);
+    
+    // Large glyph set for performance testing
+    let large_glyphs = (0..5000).collect::<Vec<u16>>();
+    
+    let start = std::time::Instant::now();
+    let _result = detector.detect_advanced(&large_glyphs, None);
+    let duration = start.elapsed();
+    
+    // Should complete in < 5ms
+    assert!(duration.as_millis() < 5, "Advanced detection took too long: {:?}", duration);
+}
+
+#[test]
+fn test_empty_input_handling() {
+    // WILL FAIL - AdvancedDetector not implemented yet
+    let provider = Box::new(MockFontTableProvider::new());
+    let mut detector = AdvancedDetector::new(provider);
+    
+    let result = detector.detect_advanced(&[], None);
+    
+    // Should handle gracefully
+    assert_eq!(result.confidence, DetectionConfidence::Low);
+    assert!(result.advanced_info.is_none());
+}
+```
+
+### 4.6 Feature Extraction Tests (WILL FAIL)
+
+```rust
+// tests/subset/advanced/feature_tests.rs
+
+use crate::subset::advanced::{AdvancedDetector, FeatureVector};
+use crate::subset::detection::MockFontTableProvider;
+
+#[test]
+fn test_feature_extraction_basic() {
+    // WILL FAIL - AdvancedDetector not implemented yet
+    let provider = Box::new(MockFontTableProvider::new());
+    let detector = AdvancedDetector::new(provider);
+    
+    let glyphs = (32..127).collect::<Vec<u16>>();
+    let features = detector.extract_features(&glyphs);
+    
+    assert_eq!(features.glyph_count, 95);
+    assert!(features.has_latin);
+    assert!(!features.has_cjk);
+    assert!(!features.has_symbolic);
+    assert!(features.sequential_ratio > 0.9);
+    assert!(features.density > 0.8);
+}
+
+#[test] 
+fn test_feature_extraction_cjk() {
+    // WILL FAIL - AdvancedDetector not implemented yet
+    let provider = Box::new(MockFontTableProvider::new());
+    let detector = AdvancedDetector::new(provider);
+    
+    let glyphs = (0x4E00..0x4E50).collect::<Vec<u16>>();
+    let features = detector.extract_features(&glyphs);
+    
+    assert_eq!(features.glyph_count, 80);
+    assert!(!features.has_latin);
+    assert!(features.has_cjk);
+    assert!(!features.has_symbolic);
+    assert!(features.max_gid >= 0x4E00);
+}
+
+#[test]
+fn test_feature_extraction_symbolic() {
+    // WILL FAIL - AdvancedDetector not implemented yet
+    let provider = Box::new(MockFontTableProvider::new());
+    let detector = AdvancedDetector::new(provider);
+    
+    let glyphs = vec![0, 256, 258, 260, 300, 302, 400];
+    let features = detector.extract_features(&glyphs);
+    
+    assert_eq!(features.glyph_count, 7);
+    assert!(!features.has_latin);
+    assert!(!features.has_cjk);
+    assert!(features.has_symbolic);
+    assert!(features.density < 0.5);
+}
+
+#[test]
+fn test_feature_extraction_mixed() {
+    // WILL FAIL - AdvancedDetector not implemented yet
+    let provider = Box::new(MockFontTableProvider::new());
+    let detector = AdvancedDetector::new(provider);
+    
+    let mut glyphs = (32..95).collect::<Vec<u16>>();  // Latin
+    glyphs.extend(256..280);                          // Symbols
+    glyphs.extend(0x4E00..0x4E10);                   // CJK
+    
+    let features = detector.extract_features(&glyphs);
+    
+    assert!(features.has_latin);
+    assert!(features.has_cjk);
+    assert!(features.has_symbolic);
+    assert!(features.cluster_count >= 2);
+}
+```
+
+---
+
+## 5. Implement Functions Incrementally
+
+### 5.1 Implementation Order
+
+**Phase 5A: Core Data Structures**
+1. Define all structs and enums (signatures only)
+2. Implement basic constructors
+3. Run basic compilation tests
+
+**Phase 5B: Entropy Analysis**
+1. Implement `EntropyAnalyzer::new()`
+2. Implement `calculate_gap_entropy()` 
+3. Implement `analyze_resubset_probability()`
+4. Run entropy tests until passing
+
+**Phase 5C: Cluster Detection**
+1. Implement `ClusterDetector::new()`
+2. Implement `detect_clusters()` with basic DBSCAN
+3. Implement cluster analysis
+4. Run clustering tests until passing
+
+**Phase 5D: Pattern Learning**
+1. Implement `PatternLearner::new()`
+2. Implement learning and prediction logic
+3. Add persistence functionality
+4. Run learning tests until passing
+
+**Phase 5E: Integration**
+1. Implement `AdvancedDetector::new()`
+2. Implement `detect_advanced()`
+3. Connect all components
+4. Run integration tests until passing
+
+---
+
+## 6. Full-Suite Integration
+
+### 6.1 Execute Entire Test Suite
+
+After implementing each component incrementally:
+
+```bash
+# Run all Phase 5 tests
+cargo test subset::advanced
+
+# Run full subset detection suite  
+cargo test subset
+
+# Run entire test suite to check for regressions
+cargo test
+```
+
+### 6.2 Fix Regressions
+
+Address any test failures in:
+- Existing basic detection (Phase 1)
+- Context-aware detection (Phase 2)  
+- Optimization (Phase 3)
+- Validation (Phase 4)
+- New advanced detection (Phase 5)
+
+### 6.3 Performance Validation
+
+```bash
+# Run performance benchmarks
+cargo bench subset_detection
+
+# Profile memory usage
+cargo run --example memory_profile
+
+# Validate constraints:
+# - Advanced analysis < 5ms
+# - Pattern learning overhead < 10%
+# - Memory for patterns < 1MB
+```
+
+---
+
+## 7. Documentation & Review
+
+### 7.1 Update Documentation
+
+**API Documentation:**
+```rust
+/// Advanced pattern detection for edge cases and improved accuracy.
+/// 
+/// This module provides machine learning-inspired techniques for:
+/// - Re-subset font detection using entropy analysis
+/// - Symbolic font clustering with DBSCAN algorithms
+/// - Adaptive pattern learning with persistence
+/// - Mixed script and variable font detection
+/// 
+/// # Examples
+/// 
+/// ```rust
+/// use allsorts::subset::advanced::AdvancedDetector;
+/// 
+/// let mut detector = AdvancedDetector::new(provider);
+/// let result = detector.detect_advanced(&glyph_ids, None);
+/// 
+/// if result.is_resubset() {
+///     println!("Detected re-subset font");
+/// }
+/// ```
+pub mod advanced;
+```
+
+**User Guide Updates:**
+- Add advanced detection section to README
+- Document new pattern learning features
+- Add troubleshooting for edge cases
+
+**Changelog Entry:**
+```markdown
+## [Version] - 2024-08-21
+
+### Added
+- Advanced pattern detection for edge cases (Phase 5)
+- Entropy-based re-subset font detection
+- DBSCAN-inspired clustering for symbolic fonts  
+- Adaptive pattern learning with persistence
+- Mixed script and variable font detection
+- 95%+ detection accuracy for complex cases
+```
+
+### 7.2 Code Comments
+
+Ensure comprehensive documentation for:
+- Public APIs with examples
+- Complex algorithms (entropy, clustering)
+- ML-inspired learning mechanisms
+- Performance-critical sections
+- Edge case handling
+
+### 7.3 Peer Review Checklist
+
+**Code Quality:**
+- [ ] All tests passing
+- [ ] Performance constraints met
+- [ ] Memory usage within limits
+- [ ] Error handling comprehensive
+- [ ] Code follows project conventions
+
+**Algorithm Correctness:**
+- [ ] Entropy calculations mathematically sound
+- [ ] DBSCAN clustering properly implemented
+- [ ] Pattern learning convergence validated
+- [ ] Feature extraction representative
+
+**Integration:**
+- [ ] Clean integration with base detection
+- [ ] Proper fallback mechanisms
+- [ ] Consistent API design
+- [ ] Thread safety considered
+
+---
+
+## 8. Implementation Details (Reference)
+
+### 8.1 File Structure
 
 ```
 src/subset/advanced/
@@ -97,844 +996,42 @@ src/subset/advanced/
 └── optimization.rs         (optimization hints)
 ```
 
-### 3.2 Implementation Details
-
-#### 3.2.1 Entropy Analysis (`src/subset/advanced/entropy.rs`)
+### 8.2 Advanced Detection Components
 
 ```rust
-use std::collections::HashMap;
-
-pub struct EntropyAnalyzer {
-    gap_entropy_threshold: f32,
-    distribution_analyzer: DistributionAnalyzer,
-}
-
-impl EntropyAnalyzer {
-    pub fn new() -> Self {
-        EntropyAnalyzer {
-            gap_entropy_threshold: 3.5,
-            distribution_analyzer: DistributionAnalyzer::new(),
-        }
-    }
-    
-    /// Analyze entropy to detect re-subset fonts
-    pub fn analyze_resubset_probability(
-        &self,
-        glyph_ids: &[u16],
-    ) -> ResubsetAnalysis {
-        let mut sorted = glyph_ids.to_vec();
-        sorted.sort_unstable();
-        sorted.dedup();
-        
-        // Calculate gap entropy
-        let gap_entropy = self.calculate_gap_entropy(&sorted);
-        
-        // Analyze distribution characteristics
-        let distribution = self.distribution_analyzer.analyze(&sorted);
-        
-        // Check for re-subset indicators
-        let indicators = self.find_resubset_indicators(&sorted, &distribution);
-        
-        // Calculate probability
-        let probability = self.calculate_resubset_probability(
-            gap_entropy,
-            &distribution,
-            &indicators,
-        );
-        
-        ResubsetAnalysis {
-            probability,
-            gap_entropy,
-            distribution_type: distribution.distribution_type,
-            indicators,
-            original_font_estimate: self.estimate_original_font(&sorted, &distribution),
-        }
-    }
-    
-    fn calculate_gap_entropy(&self, sorted_glyphs: &[u16]) -> f32 {
-        if sorted_glyphs.len() < 2 {
-            return 0.0;
-        }
-        
-        // Calculate gaps between consecutive glyphs
-        let mut gap_counts: HashMap<u16, usize> = HashMap::new();
-        for window in sorted_glyphs.windows(2) {
-            let gap = window[1] - window[0];
-            *gap_counts.entry(gap).or_insert(0) += 1;
-        }
-        
-        // Calculate Shannon entropy
-        let total = sorted_glyphs.len() - 1;
-        let mut entropy = 0.0;
-        
-        for count in gap_counts.values() {
-            let p = *count as f32 / total as f32;
-            entropy -= p * p.log2();
-        }
-        
-        entropy
-    }
-    
-    fn find_resubset_indicators(
-        &self,
-        sorted: &[u16],
-        distribution: &Distribution,
-    ) -> Vec<ResubsetIndicator> {
-        let mut indicators = Vec::new();
-        
-        // Check for non-sequential .notdef
-        if sorted[0] == 0 && sorted.len() > 1 && sorted[1] > 1 {
-            indicators.push(ResubsetIndicator::NonSequentialNotDef);
-        }
-        
-        // Check for irregular gaps
-        if distribution.has_irregular_gaps() {
-            indicators.push(ResubsetIndicator::IrregularGaps);
-        }
-        
-        // Check for clustering around specific ranges
-        if distribution.has_multiple_clusters() {
-            indicators.push(ResubsetIndicator::MultipleClusters);
-        }
-        
-        // Check for missing common glyphs
-        let has_basic_latin = sorted.iter().any(|&g| g >= 32 && g <= 126);
-        if !has_basic_latin && sorted.len() > 20 {
-            indicators.push(ResubsetIndicator::MissingBasicLatin);
-        }
-        
-        indicators
-    }
-    
-    fn calculate_resubset_probability(
-        &self,
-        gap_entropy: f32,
-        distribution: &Distribution,
-        indicators: &[ResubsetIndicator],
-    ) -> f32 {
-        let mut probability = 0.0;
-        
-        // High entropy suggests re-subset
-        if gap_entropy > self.gap_entropy_threshold {
-            probability += 0.4;
-        } else if gap_entropy > 2.5 {
-            probability += 0.2;
-        }
-        
-        // Distribution type
-        match distribution.distribution_type {
-            DistributionType::Random => probability += 0.3,
-            DistributionType::Clustered => probability += 0.2,
-            DistributionType::Uniform => probability -= 0.1,
-            _ => {}
-        }
-        
-        // Each indicator adds to probability
-        probability += indicators.len() as f32 * 0.1;
-        
-        probability.min(1.0).max(0.0)
-    }
-    
-    fn estimate_original_font(&self, sorted: &[u16], distribution: &Distribution) -> OriginalFontEstimate {
-        // Estimate characteristics of original font
-        let max_gid = *sorted.last().unwrap_or(&0);
-        
-        let estimated_type = if max_gid > 10000 {
-            FontTypeEstimate::CJK
-        } else if distribution.has_symbolic_pattern() {
-            FontTypeEstimate::Symbolic
-        } else {
-            FontTypeEstimate::Latin
-        };
-        
-        let estimated_glyphs = match estimated_type {
-            FontTypeEstimate::CJK => 10000..30000,
-            FontTypeEstimate::Symbolic => 200..500,
-            FontTypeEstimate::Latin => 200..1000,
-        };
-        
-        OriginalFontEstimate {
-            font_type: estimated_type,
-            estimated_glyph_range: estimated_glyphs,
-            subset_ratio: sorted.len() as f32 / estimated_glyphs.start as f32,
-        }
-    }
-}
-
-#[derive(Debug, Clone)]
-pub struct ResubsetAnalysis {
-    pub probability: f32,
-    pub gap_entropy: f32,
-    pub distribution_type: DistributionType,
-    pub indicators: Vec<ResubsetIndicator>,
-    pub original_font_estimate: OriginalFontEstimate,
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub enum ResubsetIndicator {
-    NonSequentialNotDef,
-    IrregularGaps,
-    MultipleClusters,
-    MissingBasicLatin,
-    HighEntropy,
-}
-
-#[derive(Debug, Clone)]
-pub struct OriginalFontEstimate {
-    pub font_type: FontTypeEstimate,
-    pub estimated_glyph_range: std::ops::Range<usize>,
-    pub subset_ratio: f32,
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub enum FontTypeEstimate {
-    Latin,
-    CJK,
-    Symbolic,
-}
-
-pub struct DistributionAnalyzer {
-    clustering_threshold: f32,
-}
-
-impl DistributionAnalyzer {
-    pub fn new() -> Self {
-        DistributionAnalyzer {
-            clustering_threshold: 0.3,
-        }
-    }
-    
-    pub fn analyze(&self, sorted: &[u16]) -> Distribution {
-        let distribution_type = self.determine_type(sorted);
-        let clusters = self.find_clusters(sorted);
-        let gap_stats = self.calculate_gap_statistics(sorted);
-        
-        Distribution {
-            distribution_type,
-            clusters,
-            gap_stats,
-        }
-    }
-    
-    fn determine_type(&self, sorted: &[u16]) -> DistributionType {
-        // Simplified distribution detection
-        let gaps = self.calculate_gaps(sorted);
-        let unique_gaps = gaps.iter().collect::<HashSet<_>>().len();
-        let gap_ratio = unique_gaps as f32 / gaps.len() as f32;
-        
-        if gap_ratio > 0.8 {
-            DistributionType::Random
-        } else if gap_ratio < 0.2 {
-            DistributionType::Uniform
-        } else {
-            DistributionType::Clustered
-        }
-    }
-    
-    fn find_clusters(&self, sorted: &[u16]) -> Vec<Cluster> {
-        // Simplified clustering
-        let mut clusters = Vec::new();
-        if sorted.is_empty() {
-            return clusters;
-        }
-        
-        let mut current_cluster = Cluster {
-            start: sorted[0],
-            end: sorted[0],
-            count: 1,
-        };
-        
-        for &gid in &sorted[1..] {
-            if gid - current_cluster.end <= 10 {
-                current_cluster.end = gid;
-                current_cluster.count += 1;
-            } else {
-                clusters.push(current_cluster);
-                current_cluster = Cluster {
-                    start: gid,
-                    end: gid,
-                    count: 1,
-                };
-            }
-        }
-        
-        clusters.push(current_cluster);
-        clusters
-    }
-    
-    fn calculate_gaps(&self, sorted: &[u16]) -> Vec<u16> {
-        sorted.windows(2)
-            .map(|w| w[1] - w[0])
-            .collect()
-    }
-    
-    fn calculate_gap_statistics(&self, sorted: &[u16]) -> GapStatistics {
-        let gaps = self.calculate_gaps(sorted);
-        
-        if gaps.is_empty() {
-            return GapStatistics::default();
-        }
-        
-        let mean = gaps.iter().sum::<u16>() as f32 / gaps.len() as f32;
-        let variance = gaps.iter()
-            .map(|&g| (g as f32 - mean).powi(2))
-            .sum::<f32>() / gaps.len() as f32;
-        let std_dev = variance.sqrt();
-        
-        GapStatistics {
-            mean_gap: mean,
-            std_dev,
-            max_gap: *gaps.iter().max().unwrap_or(&0),
-            min_gap: *gaps.iter().min().unwrap_or(&0),
-        }
-    }
-}
-
-#[derive(Debug, Clone)]
-pub struct Distribution {
-    pub distribution_type: DistributionType,
-    pub clusters: Vec<Cluster>,
-    pub gap_stats: GapStatistics,
-}
-
-impl Distribution {
-    pub fn has_irregular_gaps(&self) -> bool {
-        self.gap_stats.std_dev > self.gap_stats.mean_gap * 0.5
-    }
-    
-    pub fn has_multiple_clusters(&self) -> bool {
-        self.clusters.len() > 3
-    }
-    
-    pub fn has_symbolic_pattern(&self) -> bool {
-        self.clusters.iter().any(|c| c.start >= 256 && c.end <= 512)
-    }
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub enum DistributionType {
-    Uniform,
-    Random,
-    Clustered,
-    Bimodal,
-}
-
-#[derive(Debug, Clone)]
-pub struct Cluster {
-    pub start: u16,
-    pub end: u16,
-    pub count: usize,
-}
-
-#[derive(Debug, Clone, Default)]
-pub struct GapStatistics {
-    pub mean_gap: f32,
-    pub std_dev: f32,
-    pub max_gap: u16,
-    pub min_gap: u16,
-}
-```
-
-#### 3.2.2 Cluster Detection (`src/subset/advanced/clustering.rs`)
-
-```rust
-/// DBSCAN-inspired clustering for glyph pattern detection
-pub struct ClusterDetector {
-    epsilon: f32,          // Maximum distance between points in cluster
-    min_points: usize,     // Minimum points to form cluster
-}
-
-impl ClusterDetector {
-    pub fn new() -> Self {
-        ClusterDetector {
-            epsilon: 50.0,    // GID distance threshold
-            min_points: 3,    // Minimum cluster size
-        }
-    }
-    
-    pub fn detect_clusters(&self, glyph_ids: &[u16]) -> Vec<GlyphCluster> {
-        let mut sorted = glyph_ids.to_vec();
-        sorted.sort_unstable();
-        sorted.dedup();
-        
-        let mut clusters = Vec::new();
-        let mut visited = vec![false; sorted.len()];
-        
-        for (i, &gid) in sorted.iter().enumerate() {
-            if visited[i] {
-                continue;
-            }
-            
-            let neighbors = self.find_neighbors(&sorted, i);
-            
-            if neighbors.len() >= self.min_points {
-                let cluster = self.expand_cluster(&sorted, i, neighbors, &mut visited);
-                clusters.push(cluster);
-            } else {
-                visited[i] = true;  // Mark as noise
-            }
-        }
-        
-        // Analyze cluster characteristics
-        for cluster in &mut clusters {
-            cluster.analyze_pattern();
-        }
-        
-        clusters
-    }
-    
-    fn find_neighbors(&self, sorted: &[u16], index: usize) -> Vec<usize> {
-        let center = sorted[index];
-        let mut neighbors = Vec::new();
-        
-        for (i, &gid) in sorted.iter().enumerate() {
-            let distance = (gid as i32 - center as i32).abs() as f32;
-            if distance <= self.epsilon {
-                neighbors.push(i);
-            }
-        }
-        
-        neighbors
-    }
-    
-    fn expand_cluster(
-        &self,
-        sorted: &[u16],
-        start_index: usize,
-        mut neighbors: Vec<usize>,
-        visited: &mut [bool],
-    ) -> GlyphCluster {
-        let mut cluster_glyphs = vec![sorted[start_index]];
-        visited[start_index] = true;
-        
-        let mut i = 0;
-        while i < neighbors.len() {
-            let neighbor_idx = neighbors[i];
-            
-            if !visited[neighbor_idx] {
-                visited[neighbor_idx] = true;
-                cluster_glyphs.push(sorted[neighbor_idx]);
-                
-                let new_neighbors = self.find_neighbors(sorted, neighbor_idx);
-                if new_neighbors.len() >= self.min_points {
-                    for n in new_neighbors {
-                        if !neighbors.contains(&n) {
-                            neighbors.push(n);
-                        }
-                    }
-                }
-            }
-            
-            i += 1;
-        }
-        
-        GlyphCluster::new(cluster_glyphs)
-    }
-}
-
-#[derive(Debug, Clone)]
-pub struct GlyphCluster {
-    pub glyphs: Vec<u16>,
-    pub center: u16,
-    pub density: f32,
-    pub pattern_type: ClusterPatternType,
-}
-
-impl GlyphCluster {
-    fn new(glyphs: Vec<u16>) -> Self {
-        let center = glyphs.iter().sum::<u16>() / glyphs.len() as u16;
-        let density = Self::calculate_density(&glyphs);
-        
-        GlyphCluster {
-            glyphs,
-            center,
-            density,
-            pattern_type: ClusterPatternType::Unknown,
-        }
-    }
-    
-    fn calculate_density(glyphs: &[u16]) -> f32 {
-        if glyphs.len() < 2 {
-            return 1.0;
-        }
-        
-        let min = *glyphs.iter().min().unwrap();
-        let max = *glyphs.iter().max().unwrap();
-        let range = (max - min) as f32 + 1.0;
-        
-        glyphs.len() as f32 / range
-    }
-    
-    fn analyze_pattern(&mut self) {
-        self.pattern_type = if self.is_sequential() {
-            ClusterPatternType::Sequential
-        } else if self.is_symbolic() {
-            ClusterPatternType::Symbolic
-        } else if self.is_cjk_like() {
-            ClusterPatternType::CJKLike
-        } else {
-            ClusterPatternType::Sparse
-        };
-    }
-    
-    fn is_sequential(&self) -> bool {
-        self.density > 0.8
-    }
-    
-    fn is_symbolic(&self) -> bool {
-        self.center >= 256 && self.center <= 1000 && self.glyphs.len() < 100
-    }
-    
-    fn is_cjk_like(&self) -> bool {
-        self.center > 1000 && self.glyphs.len() > 100
-    }
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub enum ClusterPatternType {
-    Sequential,
-    Symbolic,
-    CJKLike,
-    Sparse,
-    Unknown,
-}
-```
-
-#### 3.2.3 Pattern Learning (`src/subset/advanced/learning.rs`)
-
-```rust
-use std::collections::HashMap;
-use serde::{Serialize, Deserialize};
-
-/// Adaptive pattern learning system
-pub struct PatternLearner {
-    learned_patterns: HashMap<String, LearnedPattern>,
-    confidence_threshold: f32,
-    max_patterns: usize,
-    persistence_path: Option<PathBuf>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct LearnedPattern {
-    pub id: String,
-    pub feature_vector: FeatureVector,
-    pub encoding: FontEncoding,
-    pub confidence: f32,
-    pub success_count: usize,
-    pub failure_count: usize,
-    pub last_seen: SystemTime,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct FeatureVector {
-    pub glyph_count: usize,
-    pub density: f32,
-    pub max_gid: u16,
-    pub gap_entropy: f32,
-    pub cluster_count: usize,
-    pub has_cjk: bool,
-    pub has_latin: bool,
-    pub has_symbolic: bool,
-    pub sequential_ratio: f32,
-}
-
-impl PatternLearner {
-    pub fn new() -> Self {
-        PatternLearner {
-            learned_patterns: HashMap::new(),
-            confidence_threshold: 0.7,
-            max_patterns: 1000,
-            persistence_path: None,
-        }
-    }
-    
-    pub fn with_persistence<P: AsRef<Path>>(mut self, path: P) -> Self {
-        self.persistence_path = Some(path.as_ref().to_path_buf());
-        self.load_patterns();
-        self
-    }
-    
-    /// Learn from a successful detection
-    pub fn learn_success(
-        &mut self,
-        features: FeatureVector,
-        encoding: FontEncoding,
-    ) {
-        let pattern_id = self.generate_pattern_id(&features);
-        
-        if let Some(pattern) = self.learned_patterns.get_mut(&pattern_id) {
-            pattern.success_count += 1;
-            pattern.confidence = self.calculate_confidence(pattern);
-            pattern.last_seen = SystemTime::now();
-        } else if self.learned_patterns.len() < self.max_patterns {
-            let pattern = LearnedPattern {
-                id: pattern_id.clone(),
-                feature_vector: features,
-                encoding,
-                confidence: 0.6,  // Initial confidence
-                success_count: 1,
-                failure_count: 0,
-                last_seen: SystemTime::now(),
-            };
-            
-            self.learned_patterns.insert(pattern_id, pattern);
-        } else {
-            // Replace least confident pattern
-            self.replace_weakest_pattern(features, encoding);
-        }
-        
-        self.save_patterns();
-    }
-    
-    /// Learn from a failed detection
-    pub fn learn_failure(&mut self, features: FeatureVector) {
-        let pattern_id = self.generate_pattern_id(&features);
-        
-        if let Some(pattern) = self.learned_patterns.get_mut(&pattern_id) {
-            pattern.failure_count += 1;
-            pattern.confidence = self.calculate_confidence(pattern);
-            pattern.last_seen = SystemTime::now();
-            
-            // Remove pattern if confidence too low
-            if pattern.confidence < 0.3 {
-                self.learned_patterns.remove(&pattern_id);
-            }
-        }
-        
-        self.save_patterns();
-    }
-    
-    /// Predict encoding based on learned patterns
-    pub fn predict(&self, features: &FeatureVector) -> Option<PredictionResult> {
-        let mut best_match: Option<(&LearnedPattern, f32)> = None;
-        
-        for pattern in self.learned_patterns.values() {
-            let similarity = self.calculate_similarity(features, &pattern.feature_vector);
-            
-            if similarity > 0.8 && pattern.confidence > self.confidence_threshold {
-                if best_match.is_none() || similarity > best_match.as_ref().unwrap().1 {
-                    best_match = Some((pattern, similarity));
-                }
-            }
-        }
-        
-        best_match.map(|(pattern, similarity)| PredictionResult {
-            encoding: pattern.encoding.clone(),
-            confidence: pattern.confidence * similarity,
-            pattern_id: pattern.id.clone(),
-        })
-    }
-    
-    fn generate_pattern_id(&self, features: &FeatureVector) -> String {
-        // Create a hash-like ID from features
-        format!(
-            "P_{}_{}_{}_{}",
-            features.glyph_count / 10 * 10,  // Round to nearest 10
-            (features.density * 10.0) as u32,
-            features.max_gid / 100 * 100,    // Round to nearest 100
-            features.cluster_count
-        )
-    }
-    
-    fn calculate_confidence(&self, pattern: &LearnedPattern) -> f32 {
-        let total = pattern.success_count + pattern.failure_count;
-        if total == 0 {
-            return 0.5;
-        }
-        
-        let success_rate = pattern.success_count as f32 / total as f32;
-        
-        // Apply time decay
-        let age = SystemTime::now()
-            .duration_since(pattern.last_seen)
-            .unwrap_or_default()
-            .as_secs() as f32;
-        
-        let time_factor = 1.0 / (1.0 + age / 86400.0);  // Decay over days
-        
-        success_rate * time_factor
-    }
-    
-    fn calculate_similarity(&self, a: &FeatureVector, b: &FeatureVector) -> f32 {
-        let mut similarity = 0.0;
-        let mut weight_sum = 0.0;
-        
-        // Weighted feature comparison
-        let features = [
-            (1.0 - (a.glyph_count as f32 - b.glyph_count as f32).abs() / 1000.0, 1.0),
-            (1.0 - (a.density - b.density).abs(), 2.0),
-            (1.0 - (a.max_gid as f32 - b.max_gid as f32).abs() / 10000.0, 1.0),
-            (1.0 - (a.gap_entropy - b.gap_entropy).abs() / 5.0, 2.0),
-            (if a.has_cjk == b.has_cjk { 1.0 } else { 0.0 }, 3.0),
-            (if a.has_latin == b.has_latin { 1.0 } else { 0.0 }, 1.0),
-            (if a.has_symbolic == b.has_symbolic { 1.0 } else { 0.0 }, 2.0),
-        ];
-        
-        for (sim, weight) in features {
-            similarity += sim * weight;
-            weight_sum += weight;
-        }
-        
-        similarity / weight_sum
-    }
-    
-    fn replace_weakest_pattern(&mut self, features: FeatureVector, encoding: FontEncoding) {
-        if let Some(weakest_id) = self.find_weakest_pattern() {
-            self.learned_patterns.remove(&weakest_id);
-            
-            let pattern_id = self.generate_pattern_id(&features);
-            let pattern = LearnedPattern {
-                id: pattern_id.clone(),
-                feature_vector: features,
-                encoding,
-                confidence: 0.6,
-                success_count: 1,
-                failure_count: 0,
-                last_seen: SystemTime::now(),
-            };
-            
-            self.learned_patterns.insert(pattern_id, pattern);
-        }
-    }
-    
-    fn find_weakest_pattern(&self) -> Option<String> {
-        self.learned_patterns
-            .iter()
-            .min_by(|a, b| a.1.confidence.partial_cmp(&b.1.confidence).unwrap())
-            .map(|(id, _)| id.clone())
-    }
-    
-    fn load_patterns(&mut self) {
-        if let Some(ref path) = self.persistence_path {
-            if path.exists() {
-                if let Ok(data) = std::fs::read(path) {
-                    if let Ok(patterns) = serde_json::from_slice(&data) {
-                        self.learned_patterns = patterns;
-                    }
-                }
-            }
-        }
-    }
-    
-    fn save_patterns(&self) {
-        if let Some(ref path) = self.persistence_path {
-            if let Ok(data) = serde_json::to_vec_pretty(&self.learned_patterns) {
-                let _ = std::fs::write(path, data);
-            }
-        }
-    }
-}
-
-#[derive(Debug, Clone)]
-pub struct PredictionResult {
-    pub encoding: FontEncoding,
-    pub confidence: f32,
-    pub pattern_id: String,
-}
-```
-
-#### 3.2.4 Integration with Main Detection (`src/subset/advanced/mod.rs`)
-
-```rust
-use crate::subset::detection::{EncodingDetector, EncodingDetection, DetectionConfidence};
-
-pub struct AdvancedDetector {
-    base_detector: EncodingDetector,
+/// Advanced pattern analyzer with ML-inspired techniques
+pub struct AdvancedPatternAnalyzer {
     entropy_analyzer: EntropyAnalyzer,
     cluster_detector: ClusterDetector,
+    sequence_analyzer: SequenceAnalyzer,
     pattern_learner: PatternLearner,
 }
 
-impl AdvancedDetector {
-    pub fn new(provider: Box<dyn FontTableProvider>) -> Self {
-        AdvancedDetector {
-            base_detector: EncodingDetector::new(provider),
-            entropy_analyzer: EntropyAnalyzer::new(),
-            cluster_detector: ClusterDetector::new(),
-            pattern_learner: PatternLearner::new(),
-        }
-    }
-    
-    pub fn detect_advanced(
-        &mut self,
-        glyph_ids: &[u16],
-        pdf_info: Option<&PdfFontInfo>,
-    ) -> AdvancedDetectionResult {
-        // Extract features
-        let features = self.extract_features(glyph_ids);
-        
-        // Try learned patterns first
-        if let Some(prediction) = self.pattern_learner.predict(&features) {
-            if prediction.confidence > 0.8 {
-                return AdvancedDetectionResult {
-                    encoding: prediction.encoding,
-                    confidence: DetectionConfidence::High,
-                    reasoning: vec![format!("Matched learned pattern: {}", prediction.pattern_id)],
-                    advanced_info: Some(AdvancedInfo {
-                        pattern_type: AdvancedPatternType::LearnedPattern,
-                        characteristics: features,
-                        optimization_hints: vec![],
-                    }),
-                };
-            }
-        }
-        
-        // Check for re-subset
-        let resubset_analysis = self.entropy_analyzer.analyze_resubset_probability(glyph_ids);
-        if resubset_analysis.probability > 0.7 {
-            return self.handle_resubset_font(glyph_ids, resubset_analysis);
-        }
-        
-        // Analyze clusters
-        let clusters = self.cluster_detector.detect_clusters(glyph_ids);
-        if !clusters.is_empty() {
-            if let Some(result) = self.analyze_clusters(&clusters, &features) {
-                return result;
-            }
-        }
-        
-        // Fall back to base detection
-        let base_result = self.base_detector.detect(glyph_ids, pdf_info);
-        
-        // Learn from result (would need user feedback in real implementation)
-        if base_result.confidence >= DetectionConfidence::High {
-            self.pattern_learner.learn_success(features, base_result.encoding.clone());
-        }
-        
-        AdvancedDetectionResult {
-            encoding: base_result.encoding,
-            confidence: base_result.confidence,
-            reasoning: base_result.reasoning,
-            advanced_info: None,
-        }
-    }
-    
-    fn extract_features(&self, glyph_ids: &[u16]) -> FeatureVector {
-        let stats = GlyphStatistics::from_glyph_ids(glyph_ids);
-        let clusters = self.cluster_detector.detect_clusters(glyph_ids);
-        let gap_entropy = self.entropy_analyzer.calculate_gap_entropy(
-            &glyph_ids.iter().copied().collect::<BTreeSet<_>>()
-                .into_iter().collect::<Vec<_>>()
-        );
-        
-        FeatureVector {
-            glyph_count: glyph_ids.len(),
-            density: stats.density,
-            max_gid: stats.max_gid,
-            gap_entropy,
-            cluster_count: clusters.len(),
-            has_cjk: stats.has_cjk,
-            has_latin: stats.has_ascii,
-            has_symbolic: clusters.iter().any(|c| c.pattern_type == ClusterPatternType::Symbolic),
-            sequential_ratio: stats.sequential_runs.iter()
-                .map(|r| r.length)
-                .sum::<usize>() as f32 / glyph_ids.len() as f32,
-        }
-    }
+pub enum AdvancedPatternType {
+    ResubsetFont,          // Previously subset fonts
+    CustomSymbolic,        // Corporate/custom symbol fonts
+    MixedScript,          // Multi-language fonts
+    VariableFont,         // Variable font instances
+    LegacyEncoding,       // Old/proprietary encodings
+    CompressedMapping,    // Fonts with compressed glyph mappings
+    LearnedPattern,       // Pattern from ML learning
+}
+
+pub struct AdvancedDetectionResult {
+    pub encoding: FontEncoding,
+    pub confidence: DetectionConfidence,
+    pub reasoning: Vec<String>,
+    pub advanced_info: Option<AdvancedInfo>,
+}
+
+pub struct AdvancedInfo {
+    pub pattern_type: AdvancedPatternType,
+    pub characteristics: FeatureVector,
+    pub optimization_hints: Vec<OptimizationHint>,
 }
 ```
 
-### 3.3 Usage Examples
+### 8.3 Usage Examples
 
 ```rust
 // Example 1: Advanced detection with learning
@@ -956,13 +1053,7 @@ for cluster in clusters {
              cluster.center, cluster.glyphs.len(), cluster.pattern_type);
 }
 
-// Example 3: Entropy analysis
-let entropy = detector.analyze_entropy(&glyph_ids);
-if entropy > 3.5 {
-    println!("High entropy ({:.2}) suggests re-subset font", entropy);
-}
-
-// Example 4: Learning from feedback
+// Example 3: Learning from feedback
 if user_confirms_encoding(&result.encoding) {
     detector.learn_success(&glyph_ids, &result.encoding);
 } else {
@@ -970,54 +1061,140 @@ if user_confirms_encoding(&result.encoding) {
 }
 ```
 
-## 4. Success Criteria
+### 8.4 Why This Phase
 
-### 4.1 Detection Improvements
-- ✅ Re-subset detection accuracy > 85%
-- ✅ Symbolic font detection > 90%
-- ✅ Mixed script detection > 80%
-- ✅ Overall accuracy improvement > 5%
+**Edge Case Coverage:**
+- **Re-subset Fonts**: 5-10% of PDFs use already-subset fonts
+- **Custom Symbols**: Corporate fonts with non-standard mappings
+- **Mixed Scripts**: Documents with multiple languages
+- **Variable Fonts**: Growing usage in modern PDFs
 
-### 4.2 Performance
-- Advanced analysis < 5ms
-- Pattern learning overhead < 10%
-- Memory for learned patterns < 1MB
-
-### 4.3 Adaptability
-- Successfully learns from 100+ patterns
-- Confidence improves over time
-- Persistence across sessions
-
-## 5. Dependencies
-
-- All previous phases (1-4)
-- Optional: serde for pattern persistence
-- Optional: statistical libraries
-
-## 6. Estimated Timeline
-
-| Task | Duration | Notes |
-|------|----------|-------|
-| Entropy analysis | 4 hours | Core algorithms |
-| Cluster detection | 4 hours | DBSCAN implementation |
-| Sequence analysis | 3 hours | Pattern detection |
-| Pattern learning | 5 hours | ML-inspired system |
-| Integration | 3 hours | Hook into detector |
-| Testing | 4 hours | Edge cases |
-| Documentation | 2 hours | Advanced guide |
-| **Total** | **25 hours** | ~3.5 days |
-
-## 7. Future Possibilities
-
-- Cloud-based pattern sharing
-- Neural network integration
-- Real-time pattern updates
-- Community pattern database
-- A/B testing framework
+**Technical Excellence:**
+- **Accuracy**: Push detection accuracy to >95%
+- **Adaptability**: Learn from new patterns
+- **Performance**: Optimize for repeated patterns
+- **Robustness**: Handle malformed or unusual fonts
 
 ---
 
-*Document Version: 1.0*  
-*Created: 2024-08-21*  
+## 9. TDD Checklist for Phase 5
+
+### 9.1 Preparation Phase
+- [ ] All Phase 1-4 tests passing
+- [ ] Dependencies reviewed and understood
+- [ ] Architecture documentation read
+- [ ] Test environment prepared
+
+### 9.2 Planning Phase
+- [ ] High-level design documented
+- [ ] Components broken down into tasks
+- [ ] Edge cases identified and catalogued
+- [ ] Performance constraints defined
+- [ ] API interfaces designed
+
+### 9.3 Test Creation Phase
+- [ ] Test file structure created
+- [ ] Entropy analysis tests written (FAILING)
+- [ ] Cluster detection tests written (FAILING)
+- [ ] Pattern learning tests written (FAILING)
+- [ ] Integration tests written (FAILING)
+- [ ] Feature extraction tests written (FAILING)
+- [ ] Performance tests written (FAILING)
+- [ ] Edge case tests written (FAILING)
+
+### 9.4 Implementation Phase
+- [ ] Core data structures implemented
+- [ ] EntropyAnalyzer implemented and tests passing
+- [ ] ClusterDetector implemented and tests passing
+- [ ] PatternLearner implemented and tests passing
+- [ ] AdvancedDetector implemented and tests passing
+- [ ] Integration with base detection working
+- [ ] All component tests passing
+
+### 9.5 Integration Phase
+- [ ] All Phase 5 tests passing
+- [ ] Full subset detection suite passing
+- [ ] No regressions in existing phases
+- [ ] Performance constraints met (<5ms analysis)
+- [ ] Memory constraints met (<1MB patterns)
+- [ ] Learning overhead acceptable (<10%)
+
+### 9.6 Quality Assurance
+- [ ] Code coverage >90% for new components
+- [ ] All edge cases tested and handled
+- [ ] Error handling comprehensive
+- [ ] Thread safety verified
+- [ ] API consistency maintained
+
+### 9.7 Documentation Phase
+- [ ] Public APIs documented with examples
+- [ ] Complex algorithms explained
+- [ ] User guide updated
+- [ ] Changelog entry written
+- [ ] Code comments comprehensive
+
+### 9.8 Review Phase
+- [ ] Peer review completed
+- [ ] Review feedback addressed
+- [ ] Performance benchmarks run
+- [ ] Final testing completed
+- [ ] Ready for merge
+
+### 9.9 Success Criteria Verification
+
+**Detection Improvements:**
+- [ ] Re-subset detection accuracy > 85%
+- [ ] Symbolic font detection > 90%
+- [ ] Mixed script detection > 80%
+- [ ] Overall accuracy improvement > 5%
+
+**Performance:**
+- [ ] Advanced analysis < 5ms
+- [ ] Pattern learning overhead < 10%
+- [ ] Memory for learned patterns < 1MB
+
+**Adaptability:**
+- [ ] Successfully learns from 100+ patterns
+- [ ] Confidence improves over time
+- [ ] Persistence across sessions works
+
+### 9.10 Dependencies
+- [ ] All previous phases (1-4) complete
+- [ ] Optional: serde for pattern persistence
+- [ ] Optional: statistical libraries
+
+---
+
+**Estimated Timeline: 25 hours (~3.5 days)**
+
+| Task | Duration | TDD Steps |
+|------|----------|----------|
+| Planning & Design | 3 hours | Steps 1-2 |
+| Test Creation | 6 hours | Step 3 |
+| Core Implementation | 12 hours | Step 4 |
+| Integration & Testing | 3 hours | Step 5 |
+| Documentation | 1 hour | Steps 6-7 |
+
+---
+
+*Document Version: 2.0 (TDD)*  
+*Updated: 2024-08-21*  
 *Phase: 5 of 5*  
-*Priority: LOW - Nice to have enhancements*
+*Priority: LOW - Nice to have enhancements*  
+*Methodology: Test-Driven Development*
+
+## Appendix: Advanced Implementation Details
+
+### A.1 Key Implementation Notes
+
+This appendix contains reference implementation details to support the TDD process. The full implementations will be built incrementally following the test-driven approach outlined above.
+
+**Entropy Analysis:** Shannon entropy calculation on glyph ID gaps to detect re-subset patterns.
+
+**Cluster Detection:** DBSCAN-inspired algorithm for identifying glyph patterns and font types.
+
+**Pattern Learning:** Adaptive learning system with feature vectors and confidence-based matching.
+
+**Performance Considerations:** All advanced analysis optimized for <5ms execution time.
+
+The comprehensive implementation details were moved to this appendix to maintain focus on the TDD methodology in the main document.
