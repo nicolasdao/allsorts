@@ -306,6 +306,146 @@ let result = subset_and_map_with_context(
 - **Backward compatible**: Unknown context falls back to existing behavior
 - **Future-proof**: Extensible for additional encodings in future phases
 
+### Phase 2: PDF Convenience APIs (v0.16.0+)
+
+**New in v0.16.0:** Phase 2 adds convenience wrappers and enhanced APIs specifically designed for PDF font subsetting, building on top of the Phase 1 context-aware subsetting.
+
+#### PDF-Specific Convenience Function
+
+```rust
+use allsorts::subset::phase2::pdf::{subset_and_map_for_pdf, PdfFontContext};
+
+// Simple Identity-H subsetting
+let context = PdfFontContext::identity_h();
+let result = subset_and_map_for_pdf(&provider, &glyph_ids, context)?;
+
+// Access enhanced results
+println!("Font type: {:?}", result.font_type);
+println!("Size reduction: {:.1}%", result.statistics.reduction_percentage);
+println!("Subset glyphs: {}", result.statistics.subset_glyph_count);
+```
+
+#### PdfFontContext Constructors
+
+```rust
+// Quick constructors for common encodings
+let context_h = PdfFontContext::identity_h();  // Identity-H (horizontal)
+let context_v = PdfFontContext::identity_v();  // Identity-V (vertical)
+
+// Create from PDF font dictionary
+let context = PdfFontContext::from_pdf_dict("Identity-H", pdf_flags)?;
+
+// Advanced configuration
+let context = PdfFontContext::identity_h()
+    .with_max_cid(255)
+    .preserve_identity();
+```
+
+#### Builder Pattern API
+
+```rust
+use allsorts::subset::phase2::builder::subset_for_pdf;
+
+// Fluent builder interface
+let result = subset_for_pdf(&provider)
+    .with_glyphs(&[0, 42, 43])
+    .identity_h()
+    .with_max_cid(255)
+    .build()?;
+
+// Chain multiple operations
+let result = subset_for_pdf(&provider)
+    .with_glyphs(&[0, 100, 200])
+    .with_glyphs(&[300, 400])  // Adds more glyphs
+    .identity_v()               // Vertical text
+    .symbolic()                 // Mark as symbolic font
+    .build()?;
+```
+
+#### Enhanced Statistics
+
+```rust
+// Get detailed subsetting statistics
+let result = subset_and_map_for_pdf(&provider, &glyph_ids, context)?;
+
+let stats = &result.statistics;
+println!("Subsetting Statistics:");
+println!("  Original glyphs: {}", stats.original_glyph_count);
+println!("  Subset glyphs: {}", stats.subset_glyph_count);
+println!("  Original size: {} bytes", stats.original_size_estimate);
+println!("  Subset size: {} bytes", stats.subset_size);
+println!("  CID map size: {} bytes", stats.cid_map_size);
+println!("  Size reduction: {:.1}%", stats.reduction_percentage);
+```
+
+#### Font Type Detection
+
+```rust
+// Automatic font type detection
+let result = subset_and_map_for_pdf(&provider, &glyph_ids, context)?;
+
+match result.font_type {
+    PdfFontType::Simple => println!("Simple font (Type 1/TrueType)"),
+    PdfFontType::CidType0 => println!("CID Type 0 (CFF)"),
+    PdfFontType::CidType2 => println!("CID Type 2 (TrueType)"),
+}
+
+// Check if CID font
+if result.is_cid_font() {
+    let cid_map = result.cid_to_gid_map().unwrap();
+    pdf_font.set_cid_to_gid_map(cid_map);
+}
+```
+
+#### Complete Phase 2 Example
+
+```rust
+use allsorts::subset::phase2::{
+    pdf::{subset_and_map_for_pdf, PdfFontContext},
+    builder::subset_for_pdf,
+};
+
+// Method 1: Direct API with context
+fn subset_with_context(provider: &impl FontTableProvider) -> Result<(), SubsetError> {
+    let context = PdfFontContext::identity_h()
+        .with_max_cid(255);
+    
+    let result = subset_and_map_for_pdf(
+        provider,
+        &[0, 42, 43],
+        context,
+    )?;
+    
+    println!("Created {} byte subset", result.font_data.len());
+    println!("Reduced size by {:.1}%", result.size_reduction());
+    
+    Ok(())
+}
+
+// Method 2: Builder pattern
+fn subset_with_builder(provider: &impl FontTableProvider) -> Result<(), SubsetError> {
+    let result = subset_for_pdf(provider)
+        .with_glyphs(&[0, 42, 43])
+        .identity_h()
+        .preserve_identity()
+        .build()?;
+    
+    // Access all the same information
+    println!("Font type: {:?}", result.font_type);
+    println!("Encoding: {:?}", result.encoding_used);
+    
+    Ok(())
+}
+```
+
+**Phase 2 Key Features:**
+- **Convenience wrappers**: Simpler API for common PDF use cases
+- **Enhanced statistics**: Detailed information about subsetting operations
+- **Font type detection**: Automatic identification of font types
+- **Builder pattern**: Fluent interface for complex configurations
+- **Better error messages**: Enhanced error variants for debugging
+- **Phase 1 integration**: Internally uses the proven context-aware subsetting
+
 ## Advanced APIs
 
 ### SubsetBuilder - Fluent API

@@ -15,6 +15,8 @@ pub mod composite;
 pub mod context;
 /// PDF-specific font subsetting features
 pub mod pdf;
+/// Phase 2 API enhancements
+pub mod phase2;
 /// Enhanced result structures for subsetting operations
 pub mod result;
 /// Validation and debugging utilities for font subsetting
@@ -211,6 +213,14 @@ pub enum SubsetError {
     /// The CFF font did not contain a sole font, which is the only supported configuration for
     /// subsetting
     InvalidFontCount,
+    /// Unsupported encoding specified
+    UnsupportedEncoding(String),
+    /// Invalid context provided
+    InvalidContext(String),
+    /// CID generation failed
+    CidGenerationFailed(String),
+    /// Font type detection failed
+    FontTypeDetection(String),
 }
 
 pub(crate) trait SubsetGlyphs {
@@ -1502,6 +1512,18 @@ impl fmt::Display for SubsetError {
             SubsetError::NotDef => write!(f, "subset: first glyph is not .notdef"),
             SubsetError::TooManyGlyphs => write!(f, "subset: too many glyphs"),
             SubsetError::InvalidFontCount => write!(f, "subset: invalid font count in CFF font"),
+            SubsetError::UnsupportedEncoding(enc) => {
+                write!(f, "subset: encoding '{}' is not supported. Supported encodings: Identity-H, Identity-V", enc)
+            }
+            SubsetError::InvalidContext(msg) => {
+                write!(f, "subset: invalid context: {}", msg)
+            }
+            SubsetError::CidGenerationFailed(msg) => {
+                write!(f, "subset: CID generation failed: {}", msg)
+            }
+            SubsetError::FontTypeDetection(msg) => {
+                write!(f, "subset: font type detection failed: {}", msg)
+            }
         }
     }
 }
