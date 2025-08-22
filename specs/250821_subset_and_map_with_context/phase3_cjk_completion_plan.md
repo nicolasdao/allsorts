@@ -1,3 +1,5 @@
+Read @README.md and the @docs/subsetting.md to understand this project and its current subsetting capabilities and APIs and then implement the new changes below:
+
 # Phase 3 CJK Support Completion Plan
 
 ## Executive Summary

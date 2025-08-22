@@ -449,7 +449,7 @@ fn subset_with_builder(provider: &impl FontTableProvider) -> Result<(), SubsetEr
 
 ### Phase 3: CJK Encoding Support (v0.16.1+)
 
-**New in v0.16.1:** Phase 3 adds comprehensive support for Chinese, Japanese, and Korean (CJK) font encodings, enabling correct CIDToGIDMap generation for fonts with predefined CMap encodings beyond Identity-H/V.
+**New in v0.16.1:** Phase 3 adds comprehensive support for Chinese, Japanese, and Korean (CJK) font encodings, enabling correct CIDToGIDMap generation for fonts with predefined CMap encodings beyond Identity-H/V. The CJK support is fully integrated into the main subsetting pipeline.
 
 #### Supported CJK Encodings
 

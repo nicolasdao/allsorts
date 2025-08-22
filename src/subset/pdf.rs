@@ -1,7 +1,7 @@
 use crate::subset::composite::update_composite_references;
 use crate::subset::context::FontEncoding;
 use crate::subset::cjk::CMapProvider;
-use crate::subset::{subset_and_map, subset_and_map_with_context, FontContext, CmapTarget, SubsetError, SubsetProfile, SubsetResult as CoreSubsetResult};
+use crate::subset::{subset_and_map, subset_and_map_with_context, subset_with_mapping, FontContext, CmapTarget, SubsetError, SubsetProfile, SubsetResult as CoreSubsetResult};
 use crate::tables::FontTableProvider;
 use std::collections::HashMap;
 
@@ -234,32 +234,55 @@ pub fn subset_and_map_for_pdf<T: FontTableProvider>(
         return Err(SubsetError::InvalidContext("Missing .notdef glyph at position 0".to_string()));
     }
     
-    // Convert PdfFontContext to Phase 1 FontContext
-    let context = FontContext::PdfType0 {
-        encoding: pdf_context.encoding.clone(),
-    };
-    
-    // Use Phase 1 API to perform subsetting
-    let result = subset_and_map_with_context(
-        provider,
-        glyph_ids,
-        &SubsetProfile::Pdf,
-        CmapTarget::Unicode,
-        context,
-    )?;
-    
-    // Extract data from SubsetResult
-    let (font_data, glyph_mapping, cid_to_gid_map) = match result {
-        CoreSubsetResult::Simple { font_data, glyph_mapping } => {
-            (font_data, glyph_mapping, Vec::new())
-        }
-        CoreSubsetResult::Cid { font_data, glyph_mapping, cid_to_gid_map } => {
-            (font_data, glyph_mapping, cid_to_gid_map)
+    // For CJK encodings with CMap provider, we need special handling
+    // because the Phase 1 API doesn't support passing CMap providers
+    let (font_data, glyph_mapping, needs_cid) = if matches!(pdf_context.encoding, FontEncoding::CJK { .. }) 
+        && pdf_context.cmap_provider.is_some() 
+    {
+        // Perform standard subsetting
+        let (font_data, glyph_mapping) = subset_with_mapping(
+            provider,
+            glyph_ids,
+            &SubsetProfile::Pdf,
+            CmapTarget::Unicode,
+        )?;
+        (font_data, glyph_mapping, true)
+    } else {
+        // Convert PdfFontContext to Phase 1 FontContext for non-CJK or CJK without provider
+        let context = FontContext::PdfType0 {
+            encoding: pdf_context.encoding.clone(),
+        };
+        
+        // Use Phase 1 API to perform subsetting
+        let result = subset_and_map_with_context(
+            provider,
+            glyph_ids,
+            &SubsetProfile::Pdf,
+            CmapTarget::Unicode,
+            context,
+        )?;
+        
+        // Extract data from SubsetResult
+        match result {
+            CoreSubsetResult::Simple { font_data, glyph_mapping } => {
+                (font_data, glyph_mapping, false)
+            }
+            CoreSubsetResult::Cid { font_data, glyph_mapping, .. } => {
+                (font_data, glyph_mapping, true)
+            }
         }
     };
     
     // Detect font type
     let font_type = detect_pdf_font_type(provider)?;
+    
+    // Generate CIDToGIDMap if needed
+    let cid_to_gid_map = if needs_cid {
+        let (map, _validation) = generate_cid_to_gid_map(&pdf_context, &glyph_mapping)?;
+        map
+    } else {
+        Vec::new()
+    };
     
     // Calculate statistics
     let statistics = calculate_statistics(

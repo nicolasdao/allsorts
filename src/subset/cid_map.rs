@@ -44,9 +44,14 @@ pub fn build_cid_to_gid_map_for_encoding(
             Ok(build_identity_cid_map(glyph_mapping, max_cid))
         }
         FontEncoding::CJK { .. } => {
-            // For now, CJK encodings will be handled in a future phase
-            // This is a placeholder that returns an error
-            Err(SubsetError::UnsupportedEncoding("CJK encodings not yet implemented".to_string()))
+            // CJK encodings require special handling with CMap data
+            // This should be handled by the caller (e.g., pdf.rs) which has access to CMap provider
+            // For contexts without CMap provider, we'll use a simplified approach
+            use crate::subset::cjk::build_cjk_cid_map;
+            
+            // Use None for CMap provider - the CJK module will handle encodings that don't require it
+            // Encodings that require CMap data will return an error
+            build_cjk_cid_map(encoding, glyph_mapping, max_cid, None)
         }
         FontEncoding::AdobeCollection { .. } => {
             // Adobe collections will be handled similarly to CJK

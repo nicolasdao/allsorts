@@ -170,10 +170,15 @@ impl<'a> AutoSubsetBuilder<'a> {
                 }
                 context
             },
-            FontEncoding::CJK { .. } => {
+            FontEncoding::CJK { requires_cmap_data, .. } => {
                 let mut context = PdfFontContext::identity_h();
                 context.encoding = encoding.clone();
                 context.is_symbolic = true;
+                // Auto-provide a builtin CMap provider for CJK encodings that need it
+                if *requires_cmap_data {
+                    use crate::subset::cjk::BuiltinCMapProvider;
+                    context.cmap_provider = Some(Box::new(BuiltinCMapProvider::new()));
+                }
                 context
             },
             _ => {
