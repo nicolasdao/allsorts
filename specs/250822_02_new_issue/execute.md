@@ -1,122 +1,152 @@
-# PDF-Specific API Testing Results
+# Allsorts Issue: Glyph Dropping in CID Font Subsetting with Identity-H Encoding
 
-## Date: 2025-08-22
-## Project: pdf-compress
+## Issue Summary
 
-## Summary
+When subsetting TrueType CID fonts with Identity-H encoding using `subset_for_pdf` API, certain glyphs (particularly common punctuation like hyphen GID 45, period GID 46, and bullet GID 143) are being dropped from the subset even when explicitly requested. This results in PDFs where 68-93% of characters render as '?' despite text extraction working correctly.
 
-After correcting the API usage based on maintainer feedback, we successfully compiled and tested the PDF-specific APIs (`subset_for_pdf` with `PdfFontContext`). However, **the glyph dropping issue persists** even with the new APIs.
+## Environment
 
-## Test Configuration
+- **Allsorts version**: 0.16.2 (git = "https://github.com/nicolasdao/allsorts.git", tag = "0.16.2")
+- **Font types affected**: TrueType CID fonts with Identity-H encoding
+- **Test fonts**: Calibri, Arial, Times New Roman from Windows
+- **PDF context**: Subsetting fonts from existing PDFs with Identity CIDToGIDMap
 
-### Corrected API Usage
+## The Problem
+
+### What's Happening
+1. We request specific GIDs to be subset, including GIDs like 45 (hyphen), 46 (period), 143 (bullet)
+2. The `subset_for_pdf` API returns successfully but the returned `glyph_mapping` is missing these GIDs
+3. The resulting CIDToGIDMap has these CIDs mapping to 0 (notdef), causing '?' to appear in PDF viewers
+
+### Example
 ```rust
-let pdf_context = PdfFontContext {
-    encoding: FontEncoding::Identity { vertical: false }, // Identity-H
-    max_cid: Some(65535),
-    preserve_identity: true, // Also tested with false
-    is_symbolic: false,
-    cid_to_gid_map: None,
-    writing_mode: WritingMode::Horizontal,
-    cmap_provider: None,
-};
+// Request includes GID 45 and 46
+let requested_gids = vec![0, 49, 69, 81, 3, 91, 45, 155, 13, 79, 17, 106, 54, 68, 102, 25, 80, 160, 46, 165...];
+info!("Requesting {} glyphs including GID 45 and 46", requested_gids.len());
 
-let result = subset_for_pdf(provider, glyph_ids, &pdf_context)?;
+let result = subset_for_pdf(provider, &requested_gids, &pdf_context)?;
+
+// But the returned mapping doesn't include them!
+assert!(result.glyph_mapping.contains_key(&45)); // FAILS
+assert!(result.glyph_mapping.contains_key(&46)); // FAILS
 ```
 
-### Test File
-- **Input**: `test_zone/page8.pdf` (198KB)
-- **Contains**: 7 CID fonts with Identity-H encoding
-- **Problematic glyphs**: 8203 (ZWSP), 65279 (ZWNBSP)
+## How to Reproduce
 
-## Test Results
+### Step 1: Create Test Case
+```rust
+use allsorts::subset::pdf::{subset_for_pdf, PdfFontContext, WritingMode};
+use allsorts::subset::FontEncoding;
+use allsorts::font_data::FontData;
+use allsorts::binary::read::ReadScope;
+use std::fs;
 
-### Test 1: With `preserve_identity: false`
-```
-[INFO] subset_for_pdf called with GIDs: "[0, 65279, 8203, 3]"
-[INFO] Successfully subsetted CID font: 4 glyphs -> 7936 bytes
-[WARN] ⚠ GID 8203 (ZWSP) was dropped - this may cause rendering issues
-[WARN] ⚠ GID 65279 (ZWNBSP) was dropped - this may cause rendering issues
-[WARN] CIDToGIDMap still has many zeros (19/20), glyph dropping may persist
+fn test_cid_glyph_dropping() {
+    // Load a TrueType font (e.g., Calibri)
+    let font_data = fs::read("calibri.ttf").unwrap();
+    let scope = ReadScope::new(&font_data);
+    let font_file = scope.read::<FontData>().unwrap();
+    let provider = font_file.table_provider(0).unwrap();
+    
+    // Request common glyphs including punctuation
+    let requested_gids = vec![
+        0,   // .notdef
+        3,   // space
+        45,  // hyphen-minus (CRITICAL: gets dropped)
+        46,  // period (CRITICAL: gets dropped)
+        65,  // A
+        97,  // a
+        143, // bullet (CRITICAL: gets dropped)
+    ];
+    
+    // Configure for Identity-H CID font
+    let pdf_context = PdfFontContext {
+        encoding: FontEncoding::Identity { vertical: false },
+        max_cid: Some(255),
+        preserve_identity: false,  // Using optimal subsetting
+        is_symbolic: false,
+        cid_to_gid_map: None,
+        writing_mode: WritingMode::Horizontal,
+        cmap_provider: None,
+    };
+    
+    // Perform subsetting
+    let result = subset_for_pdf(&provider, &requested_gids, &pdf_context).unwrap();
+    
+    // Check which glyphs were actually included
+    println!("Requested {} glyphs", requested_gids.len());
+    println!("Got {} in mapping", result.glyph_mapping.len());
+    
+    for gid in &requested_gids {
+        if !result.glyph_mapping.contains_key(gid) {
+            println!("WARNING: GID {} was requested but not in result mapping!", gid);
+        }
+    }
+    
+    // Check CIDToGIDMap for zeros
+    let mut zero_count = 0;
+    for i in (0..result.cid_to_gid_map.len()).step_by(2) {
+        let gid = u16::from_be_bytes([
+            result.cid_to_gid_map[i],
+            result.cid_to_gid_map[i + 1]
+        ]);
+        if gid == 0 && i > 0 {  // Skip CID 0 which should map to GID 0
+            zero_count += 1;
+        }
+    }
+    println!("CIDToGIDMap has {} non-zero entries out of {}", 
+             result.cid_to_gid_map.len() / 2 - zero_count,
+             result.cid_to_gid_map.len() / 2);
+}
 ```
 
-### Test 2: With `preserve_identity: true`
-```
-[INFO] subset_for_pdf called with GIDs: "[0, 65279, 8203, 3]"
-[INFO] Successfully subsetted CID font: 4 glyphs -> 7936 bytes
-[WARN] ⚠ GID 8203 (ZWSP) was dropped - this may cause rendering issues
-[WARN] ⚠ GID 65279 (ZWNBSP) was dropped - this may cause rendering issues
-[WARN] CIDToGIDMap still has many zeros (19/20), glyph dropping may persist
-```
+### Step 2: Expected vs Actual Results
 
-### Verification with pdf_glyph_zero_detector
-```
-❌ RESULT: Glyph mapping issues CONFIRMED!
-Total missing glyphs (GID 0): 327512
-Affected fonts:
-  - All 7 CID fonts show 99.9-100% glyphs missing
-```
+**Expected:**
+- All requested GIDs should be in the returned `glyph_mapping`
+- CIDToGIDMap should have proper mappings for all requested glyphs
+
+**Actual:**
+- GIDs 45, 46, 143 (and others) are missing from `glyph_mapping`
+- CIDToGIDMap has these CIDs mapping to 0 (notdef)
+- PDF viewers show '?' for these characters
 
 ## Analysis
 
-### What's Happening
+### Identity-H Context
+For TrueType fonts with Identity-H encoding in PDFs:
+- The PDF uses "Identity" CIDToGIDMap, meaning CID values ARE the GID values
+- Character codes map to CIDs through the encoding (Identity-H means char code = CID)
+- The subsetting should preserve these specific GID mappings
 
-1. **API is called correctly**: The `subset_for_pdf` function is being invoked with the proper struct
-2. **Glyphs are requested**: GIDs 8203 and 65279 are explicitly in the input array
-3. **Glyphs are dropped**: The returned `glyph_mapping` doesn't contain these GIDs
-4. **Setting doesn't matter**: Both `preserve_identity: true` and `false` produce same result
+### Suspected Issue
+It appears the `subset_for_pdf` API might be:
+1. Validating GIDs against some internal criteria and dropping "invalid" ones
+2. Or having issues with certain glyph types (punctuation, symbols)
+3. Or incorrectly handling the Identity mapping case
 
-### Evidence of Internal Filtering
+## Workaround
 
-The PDF-specific API appears to have the same internal glyph filtering logic as `subset_and_map`. Specifically:
-- Zero-width spaces (U+200B, GID 8203)
-- Zero-width no-break spaces (U+FEFF, GID 65279)
-- Possibly other "invisible" or "non-essential" glyphs
+Setting `preserve_identity: true` in `PdfFontContext` works but results in much larger files as it includes all glyphs up to the maximum GID.
 
-These are being filtered out **before** the subsetting operation, not during it.
+## Request for Fix
 
-## Comparison with Standard API
+Could you please investigate why `subset_for_pdf` is dropping these specific glyphs even when they're explicitly requested? The glyphs exist in the font (verified by checking the font's glyph count), they're being requested in the input vector, but they're not appearing in the output mapping.
 
-Both APIs show identical behavior:
-- `subset_and_map`: Drops glyphs 8203, 65279
-- `subset_for_pdf`: Drops glyphs 8203, 65279
+This is critical for PDF compression tools as these missing glyphs are common punctuation marks that make compressed PDFs unreadable.
 
-## File Size Impact
+## Additional Debug Info
 
-- **Original**: 198KB
-- **With glyph dropping**: 118KB (40% reduction)
-- **With identity preservation workaround**: ~130KB (34% reduction)
+When running with logging, we see:
+```
+Font Calibri-Bold has 203 total glyphs (valid GID range: 0-202)
+Requesting GIDs: [0, 49, 69, 81, 3, 91, 45, 155, 13, 79, 17, 106, 54, 68, 102, 25, 80, 160, 46, 165...]
+subset_for_pdf returned 15 mapped glyphs (but we requested 44!)
+WARNING: GID 45 was dropped
+WARNING: GID 46 was dropped  
+WARNING: GID 143 was dropped
+```
 
-## Conclusion
+The issue affects multiple fonts (Calibri, Arial, Times New Roman) so it's not font-specific.
 
-The PDF-specific APIs are working as designed but **do not solve the glyph dropping issue**. The filtering appears to be happening at a deeper level in the allsorts library, possibly in:
-
-1. The font parsing stage
-2. The glyph collection logic
-3. A "optimization" that removes zero-width glyphs
-
-## Recommendations
-
-### For the Maintainer
-
-The glyph filtering needs to be addressed at the core level. Possible solutions:
-1. Add a flag to disable glyph filtering entirely
-2. Special-case zero-width spaces as "essential" glyphs for PDFs
-3. Provide a whitelist of GIDs that must not be dropped
-
-### For Our Project
-
-Until the core issue is fixed:
-1. **Continue using identity preservation** in the existing subsetting code (not the new API)
-2. **Accept larger file sizes** as a trade-off for correct rendering
-3. **Monitor allsorts updates** for a proper fix
-
-## Next Steps
-
-1. Report these findings to the allsorts maintainer
-2. Consider alternative font subsetting libraries if the issue isn't resolved
-3. Implement a workaround that detects when these glyphs are needed and forces identity preservation only for affected fonts
-
----
-
-**Note**: The PDF-specific APIs are properly implemented and accessible in allsorts 0.15.4, but they inherit the same glyph dropping behavior as the standard APIs. This is a core library issue, not an API problem.
+Thank you for looking into this!
