@@ -4,3 +4,11 @@ Based on all those changes, update the following document where it makes sense:
 - @specs/250821_subset_and_map_with_context/README.md this document tracks the high-level phases' completions. Update this document by marking all that tasks/phases in it that you have just completed. 
 
 What that's all done, proceed with committing all those changes. Use the conventional git commit messages and keep the commit message as a one liner.
+
+
+
+
+
+Based on eveything we know about the CJK Encoding Support feature and based on what is documented in @specs/250821_subset_and_map_with_context/phase3_cjk_encodings.md create a new detailed plan to fully complete the implementation of that feature. Based on our scan, it seems that we have already built the unit teasts
+
+Based on all this new info create a new detailed plan to fully complete the implementation of this feature. Design this plan using TDD as explained in @specs/TDD.md. Save that detailed technical plan under @specs/250821_subset_and_map_with_context/ 

@@ -21,6 +21,10 @@ pub mod pdf;
 pub mod result;
 /// Validation and debugging utilities for font subsetting
 pub mod validation;
+/// Automatic encoding detection for font subsetting
+pub mod detection;
+/// Auto-configuration builder for font subsetting
+pub mod auto;
 
 use std::collections::{BTreeMap, HashMap};
 use std::fmt;

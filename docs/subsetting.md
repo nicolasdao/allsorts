@@ -477,6 +477,188 @@ let result = subset_and_map_for_pdf(&provider, &glyph_ids, context)?;
 
 See the [CJK Support Guide](cjk_support.md) for detailed documentation and examples.
 
+### Phase 4: Detection & Auto-Configuration (v0.16.2+)
+
+**New in v0.16.2:** Phase 4 adds intelligent encoding detection and auto-configuration capabilities, reducing the manual configuration burden for PDF font subsetting.
+
+#### Automatic Encoding Detection
+
+```rust
+use allsorts::subset::auto::auto_subset_for_pdf;
+use allsorts::subset::detection::{DetectionConfidence, PdfFontInfo};
+
+// Automatic detection with minimal configuration
+let result = auto_subset_for_pdf(&provider)
+    .with_glyphs(&[0, 143, 159, 178])  // Sparse CID glyphs
+    .build()?;
+
+// Access detection information
+println!("Detected encoding: {:?}", result.detection.encoding);
+println!("Confidence: {:?}", result.detection.confidence);
+println!("Reasoning: {:?}", result.detection.reasoning);
+```
+
+#### Detection with PDF Metadata
+
+```rust
+// Provide PDF font information for better detection
+let pdf_info = PdfFontInfo {
+    encoding_name: Some("Identity-H".to_string()),
+    font_name: Some("ArialMT".to_string()),
+    flags: 0x04,  // Symbolic font flag
+    registry: Some("Adobe".to_string()),
+    ordering: Some("Identity".to_string()),
+    supplement: Some(0),
+    to_unicode: None,
+};
+
+let result = auto_subset_for_pdf(&provider)
+    .with_glyphs(&glyph_ids)
+    .with_pdf_info(pdf_info)
+    .build()?;
+
+// Certain confidence when explicit encoding is provided
+assert_eq!(result.confidence(), &DetectionConfidence::Certain);
+```
+
+#### Pattern-Based Detection
+
+The system automatically detects encoding patterns from glyph IDs:
+
+```rust
+// CJK dense pattern (sequential high IDs)
+let cjk_glyphs = vec![0, 8000, 8001, 8002, 8003];
+
+// ASCII/Latin pattern
+let ascii_glyphs = vec![0, 65, 66, 67, 68];  // A, B, C, D
+
+// Identity-H pattern (sparse CIDs)
+let identity_glyphs = vec![0, 143, 159, 178];
+
+// Auto-detection will identify the correct pattern
+let result = auto_subset_for_pdf(&provider)
+    .with_glyphs(&cjk_glyphs)
+    .build()?;
+
+// Detected as CJK encoding with high confidence
+```
+
+#### Confidence Levels
+
+```rust
+use allsorts::subset::detection::DetectionConfidence;
+
+// Set minimum confidence threshold
+let result = auto_subset_for_pdf(&provider)
+    .with_glyphs(&ambiguous_glyphs)
+    .min_confidence(DetectionConfidence::High)
+    .build();
+
+// Will fail if detection confidence is below High
+if let Err(e) = result {
+    println!("Detection confidence too low: {}", e);
+}
+```
+
+**Confidence Levels:**
+- **Certain**: Explicit encoding specified in PDF metadata
+- **High**: Strong pattern match (90%+ confidence)
+- **Medium**: Some patterns match (70-90% confidence)
+- **Low**: Guessing based on heuristics (<70% confidence)
+
+#### Manual Override
+
+```rust
+use allsorts::subset::context::{FontEncoding, CJKLanguage, JapaneseVariant};
+
+// Override automatic detection with specific encoding
+let encoding = FontEncoding::CJK {
+    language: CJKLanguage::Japanese(JapaneseVariant::Unicode),
+    encoding_name: "UniJIS-UTF16-H".to_string(),
+    vertical: false,
+    requires_cmap_data: false,
+};
+
+let result = auto_subset_for_pdf(&provider)
+    .with_glyphs(&glyph_ids)
+    .override_encoding(encoding)
+    .build()?;
+
+// Always returns Certain confidence for manual override
+```
+
+#### Statistical Analysis
+
+The detection system analyzes glyph statistics:
+
+```rust
+use allsorts::subset::detection::GlyphStatistics;
+
+// Analyze glyph distribution
+let stats = GlyphStatistics::from_glyph_ids(&glyph_ids);
+
+println!("Glyph Statistics:");
+println!("  Min GID: {}", stats.min_gid);
+println!("  Max GID: {}", stats.max_gid);
+println!("  Density: {:.2}", stats.density);
+println!("  Has CJK: {}", stats.has_cjk_range);
+println!("  Has Kana: {}", stats.has_kana_range);
+println!("  Has ASCII: {}", stats.has_ascii_range);
+```
+
+#### Complete Auto-Configuration Example
+
+```rust
+use allsorts::subset::auto::auto_subset_for_pdf;
+use allsorts::subset::detection::{EncodingDetector, PdfFontInfo};
+
+fn subset_pdf_font_auto(
+    provider: &dyn FontTableProvider,
+    glyph_ids: &[u16],
+    pdf_metadata: Option<PdfFontInfo>,
+) -> Result<Vec<u8>, SubsetError> {
+    // Build with auto-detection
+    let mut builder = auto_subset_for_pdf(provider)
+        .with_glyphs(glyph_ids);
+    
+    // Add PDF metadata if available
+    if let Some(info) = pdf_metadata {
+        builder = builder.with_pdf_info(info);
+    }
+    
+    // Build and get results
+    let result = builder
+        .min_confidence(DetectionConfidence::Medium)
+        .build()?;
+    
+    // Report detection results
+    println!("Auto-detection Results:");
+    println!("  Encoding: {:?}", result.detection.encoding);
+    println!("  Confidence: {:?}", result.detection.confidence);
+    
+    for reason in result.reasoning() {
+        println!("  - {}", reason);
+    }
+    
+    if !result.alternatives().is_empty() {
+        println!("  Alternative encodings:");
+        for alt in result.alternatives() {
+            println!("    - {:?}", alt);
+        }
+    }
+    
+    Ok(result.subset_result.font_data)
+}
+```
+
+**Key Features:**
+- **Zero-configuration API**: Works automatically for most cases
+- **Pattern matching**: Identifies Identity-H, CJK, ASCII, and Symbol patterns
+- **Statistical analysis**: Analyzes glyph distributions for better detection
+- **Caching**: Avoids recomputation for identical inputs
+- **Confidence levels**: Provides transparency about detection certainty
+- **Manual override**: Allows explicit encoding specification when needed
+
 ## Advanced APIs
 
 ### SubsetBuilder - Fluent API

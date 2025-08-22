@@ -154,10 +154,19 @@ impl owned::CmapSubtableFormat4 {
             glyph_id_array: Vec::new(),
         };
 
+        // Handle empty mappings case - create minimal valid format 4 table
+        if mappings.mappings.is_empty() {
+            // Add the required terminator segment
+            table.end_codes.push(0xFFFF);
+            table.start_codes.push(0xFFFF);
+            table.id_deltas.push(1);
+            table.id_range_offsets.push(0);
+            return Ok(table);
+        }
+
         // Group the mappings into contiguous ranges, there can be holes in the ranges
         let mut glyph_ids = Vec::new();
         let mut id_range_offset_fixup_indices = Vec::new();
-        // NOTE(unwrap): safe as mappings is non-empty
         let (start, gid) = mappings.iter().next().unwrap();
         let mut segment = CmapSubtableFormat4Segment::new(start.as_u32(), gid, &mut glyph_ids);
         for (ch, gid) in mappings.iter().skip(1) {
@@ -225,7 +234,14 @@ impl owned::CmapSubtableFormat4 {
 
 impl owned::CmapSubtableFormat12 {
     fn from_mappings(mappings: &MappingsToKeep<NewIds>) -> owned::CmapSubtableFormat12 {
-        // NOTE(unwrap): safe as mappings is non-empty
+        // Handle empty mappings case - create minimal valid format 12 table
+        if mappings.mappings.is_empty() {
+            return owned::CmapSubtableFormat12 {
+                language: 0,
+                groups: Vec::new(),
+            };
+        }
+        
         let (start, gid) = mappings.iter().next().unwrap();
         let mut segment = SequentialMapGroup {
             start_char_code: start.as_u32(),
