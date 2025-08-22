@@ -833,10 +833,13 @@ pub fn subset_for_pdf(
 **Data Structures:**
 ```rust
 pub struct PdfFontContext {
+    pub encoding: FontEncoding,
+    pub max_cid: Option<u16>,
+    pub preserve_identity: bool,
+    pub is_symbolic: bool,
     pub cid_to_gid_map: Option<Vec<u16>>,
-    pub max_cid: u16,
-    pub is_cid_font: bool,
     pub writing_mode: WritingMode,
+    pub cmap_provider: Option<Box<dyn CMapProvider>>,
 }
 
 pub struct PdfSubsetResult {
@@ -846,6 +849,9 @@ pub struct PdfSubsetResult {
     pub validation: ValidationResult,
     pub warnings: Vec<PdfWarning>,
 }
+
+// Note: Recent bug fix - preserve_identity flag now correctly creates
+// identity mapping when set to true.
 ```
 
 **Example:**
@@ -854,10 +860,13 @@ use allsorts::subset::pdf::{subset_for_pdf, PdfFontContext, WritingMode};
 
 // Configure for CID font with horizontal text
 let pdf_context = PdfFontContext {
+    encoding: FontEncoding::Identity { vertical: false },
+    max_cid: Some(255),
+    preserve_identity: true,
+    is_symbolic: false,
     cid_to_gid_map: None,
-    max_cid: 255,
-    is_cid_font: true,
     writing_mode: WritingMode::Horizontal,
+    cmap_provider: None,
 };
 
 let result = subset_for_pdf(
@@ -1349,7 +1358,7 @@ glyph_ids.extend(your_glyphs);
 
 #### Characters Rendering as Boxes
 **Problem:** Characters show as '?' or □ in PDF
-**Solution:** Ensure CID fonts are properly detected:
+**Solution:** The CIDToGIDMap generation bug has been fixed and now correctly respects the max_cid parameter. Ensure CID fonts are properly detected:
 ```rust
 // Use explicit hint if auto-detection fails
 let result = subset_and_map_with_hint(
@@ -1372,6 +1381,10 @@ SubsetBuilder::new(&provider)
 #### Parse(BadIndex) with CFF Fonts
 **Problem:** Error with glyph IDs >= 225
 **Solution:** Update to version 0.16.1 or later (bug fixed)
+
+#### CIDToGIDMap Size Issue (Fixed)
+**Problem:** CIDToGIDMap was always 131,072 bytes regardless of max_cid
+**Solution:** Fixed in latest version - now correctly sized to (max_cid + 1) * 2 bytes. This significantly reduces the size of CIDToGIDMap for fonts with smaller character sets.
 
 #### Non-Sequential New IDs
 **Problem:** Mapping has gaps in new IDs

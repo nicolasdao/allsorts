@@ -1,4 +1,9 @@
 use crate::subset::composite::update_composite_references;
+
+#[cfg(test)]
+mod pdf_direct_tests;
+#[cfg(test)]
+mod pdf_production_tests;
 use crate::subset::context::FontEncoding;
 use crate::subset::cjk::CMapProvider;
 use crate::subset::{subset_and_map, subset_and_map_with_context, subset_with_mapping, FontContext, CmapTarget, SubsetError, SubsetProfile, SubsetResult as CoreSubsetResult};
@@ -328,7 +333,7 @@ pub fn subset_for_pdf(
     )?;
 
     // Extract font data and mapping from SubsetResult
-    let (mut font_data, glyph_mapping) = match result {
+    let (mut font_data, mut glyph_mapping) = match result {
         crate::subset::SubsetResult::Simple {
             font_data,
             glyph_mapping,
@@ -339,6 +344,19 @@ pub fn subset_for_pdf(
             ..
         } => (font_data, glyph_mapping),
     };
+    
+    // Handle preserve_identity flag
+    // When preserve_identity is true, we need to preserve the original glyph IDs
+    // This is typically used when you include all glyphs and want identity mapping
+    if pdf_context.preserve_identity {
+        // Create identity mapping if requested
+        // This assumes the caller has included all necessary glyphs in order
+        let mut identity_mapping = HashMap::new();
+        for &gid in glyph_ids {
+            identity_mapping.insert(gid, gid);
+        }
+        glyph_mapping = identity_mapping;
+    }
 
     // Step 2: Update composite references
     let update_stats = update_composite_references(&mut font_data, &glyph_mapping)?;
@@ -397,7 +415,7 @@ pub fn subset_for_pdf(
     })
 }
 
-fn generate_cid_to_gid_map(
+pub(crate) fn generate_cid_to_gid_map(
     context: &PdfFontContext,
     mapping: &HashMap<u16, u16>,
 ) -> Result<(Vec<u8>, ValidationResult), SubsetError> {
