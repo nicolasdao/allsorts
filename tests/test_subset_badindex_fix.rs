@@ -244,3 +244,72 @@ fn test_legacy_subset_also_handles_excessive_glyphs() {
         }
     }
 }
+
+#[test]
+fn test_subset_with_65280_glyphs() {
+    // Load a TrueType font for testing
+    let font_bytes = include_bytes!("../tests/fonts/opentype/Klei.otf");
+
+    // Parse the font
+    let font_data = ReadScope::new(font_bytes)
+        .read::<FontData<'_>>()
+        .expect("Failed to parse font");
+
+    let provider = font_data
+        .table_provider(0)
+        .expect("Failed to get table provider");
+
+    // Check actual glyph count
+    let actual_glyph_count = if let Ok(maxp_data) = provider.read_table_data(tag::MAXP) {
+        let data = maxp_data.as_ref();
+        if data.len() >= 6 {
+            u16::from_be_bytes([data[4], data[5]])
+        } else {
+            1000
+        }
+    } else {
+        1000
+    };
+
+    println!("Font has {} actual glyphs", actual_glyph_count);
+    
+    // This is the problematic request: all glyphs from 0 to 65279 (65,280 total)
+    // This simulates what CID font subsetting code does when trying to preserve identity mapping
+    let glyph_ids_vec: Vec<u16> = (0..=65279).collect();
+    
+    println!("🧪 Testing subset_and_map with {} glyphs (0..=65279)", glyph_ids_vec.len());
+    println!("   Font only has {} actual glyphs!", actual_glyph_count);
+    
+    // This should NOT fail with Parse(BadIndex) after the fix
+    let result = subset_and_map(
+        &provider,
+        &glyph_ids_vec,
+        &SubsetProfile::Pdf,
+        CmapTarget::Unrestricted,
+    );
+    
+    match result {
+        Ok(SubsetResult::Simple { font_data, glyph_mapping }) => {
+            println!("✅ SUCCESS: subset_and_map handled 65,280 glyphs gracefully!");
+            println!("   Result: {} bytes, {} mapped glyphs", font_data.len(), glyph_mapping.len());
+            // The mapping should only contain valid glyphs from the font
+            assert!(glyph_mapping.len() <= actual_glyph_count as usize, 
+                    "Mapping has more glyphs than the font!");
+            assert_eq!(glyph_mapping.get(&0), Some(&0), ".notdef should be mapped");
+        }
+        Ok(SubsetResult::Cid { font_data, glyph_mapping, cid_to_gid_map }) => {
+            println!("✅ SUCCESS: subset_and_map handled 65,280 glyphs as CID font!");
+            println!("   Result: {} bytes, {} mapped glyphs, CIDToGIDMap: {} bytes", 
+                     font_data.len(), glyph_mapping.len(), cid_to_gid_map.len());
+            assert_eq!(glyph_mapping.get(&0), Some(&0), ".notdef should be mapped");
+        }
+        Err(e) => {
+            let error_string = format!("{:?}", e);
+            if error_string.contains("Parse") && error_string.contains("BadIndex") {
+                panic!("❌ BUG STILL EXISTS: Parse(BadIndex) error when requesting 65,280 glyphs!\nThis is the exact bug that needs to be fixed.\nError: {}", error_string);
+            } else {
+                panic!("Unexpected error (not Parse(BadIndex)): {}", error_string);
+            }
+        }
+    }
+}

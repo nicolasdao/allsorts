@@ -1,2 +1,2 @@
 1. Read @README.md to understand this project.
-2. Read the test file @specs/250906_01_bug/test.rs and try to run it. If it cannot be run, then update it.
+2. Read the test file @specs/250906_01_bug/test.rs and @specs/250906_01_bug/allsorts_integration.rs try to run test.rs. If it cannot be run, then update it until you can run that test
